@@ -1,3 +1,57 @@
+Metadata-Version: 2.4
+Name: polyglot-bug-hunter-x
+Version: 1.0.0
+Summary: Multimodal AI agent that sees, hears and reads a website while hunting bugs
+Author: PolyglotBugHunter-X contributors
+License: MIT
+Project-URL: Homepage, https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static
+Project-URL: Model, https://huggingface.co/Kicaulah/polyglot-bughunter-x
+Project-URL: Dataset, https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns
+Project-URL: Repository, https://github.com/simonmarc/polyglot-bughunter-x
+Keywords: security,web-security,bug-bounty,multimodal,agent,xss,sqli,csrf,idor,ssrf,cvss,prompt-injection,i18n
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Information Technology
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Security
+Classifier: Natural Language :: English
+Classifier: Natural Language :: Chinese
+Classifier: Natural Language :: Japanese
+Classifier: Natural Language :: Korean
+Classifier: Natural Language :: Arabic
+Classifier: Natural Language :: Russian
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Provides-Extra: space
+Requires-Dist: gradio<6,>=4.44; extra == "space"
+Provides-Extra: duckdb
+Requires-Dist: duckdb>=1.0; extra == "duckdb"
+Provides-Extra: http
+Requires-Dist: requests>=2.32; extra == "http"
+Provides-Extra: image
+Requires-Dist: pillow>=10.0; extra == "image"
+Provides-Extra: audio
+Requires-Dist: faster-whisper>=1.0; extra == "audio"
+Provides-Extra: browser
+Requires-Dist: playwright>=1.45; extra == "browser"
+Provides-Extra: agent
+Requires-Dist: langchain>=0.3; extra == "agent"
+Requires-Dist: llama-index>=0.12; extra == "agent"
+Provides-Extra: all
+Requires-Dist: duckdb>=1.0; extra == "all"
+Requires-Dist: requests>=2.32; extra == "all"
+Requires-Dist: pillow>=10.0; extra == "all"
+Requires-Dist: playwright>=1.45; extra == "all"
+Requires-Dist: faster-whisper>=1.0; extra == "all"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Dynamic: license-file
+
 <div align="center">
 
 ![demo](assets/demo.gif)
