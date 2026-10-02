@@ -47,25 +47,41 @@ SUBTITLE = "Run the detector offline, then load the payload tables as Parquet."
 def kernel_install_cell() -> list[str]:
     """The kernel's install cell.
 
-    This used to inline the wheel as base64, which made the notebook 180 KB of
-    unreadable text. That was a workaround for a repo that did not exist: a
-    kernel can only reach what is in its own folder or on PyPI, and neither was
-    available. The repo exists now, so the kernel installs from an immutable tag
-    instead - same code, 17 KB notebook, and a human can read what it does.
+    Three attempts got here, and why the third one works is worth recording:
 
-    The ref is a tag rather than a branch on purpose: a re-run of a published
-    kernel must not quietly start executing different code than it did when it
-    was published.
+    - 110 KB of base64 inlined in the notebook: it works, and it is unreadable.
+      A build artifact nobody can review or diff, and a truncated paste
+      surfaces as a pip error with no context.
+    - pip install from the Git tag: a 17 KB notebook, right up until the kernel
+      ran with enable_internet off and `git clone` exited 128. The tag is right
+      for a reader with a network and useless inside a kernel that has none.
+    - the wheel attached as a dataset: Kaggle mounts an attached dataset without
+      needing a network, which is precisely the situation this kernel is in.
+
+    So the dataset comes first and the ref is the fallback, which means the
+    kernel needs no internet, and so does anyone who copies the cell elsewhere.
     """
+
     return [
-        "import subprocess, sys\n",
+        "import glob, subprocess, sys\n",
         "\n",
-        "# Install the scanner from an immutable tag. Not PyPI: the project is not\n",
-        "# published there. Not inline base64: the GitHub repo exists, and a\n",
-        "# notebook you can read beats 110 KB you cannot.\n",
-        f"_VCS = {VCS_URL!r}\n",
-        "print(f\"installing {_VCS}\")\n",
-        "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _VCS],\n",
+        "# The kernel runs with enable_internet off, so the package arrives as a\n",
+        "# file attached from the companion dataset. The Git tag is the fallback\n",
+        "# for anyone running this cell outside Kaggle, where there is a network.\n",
+        "_wheel = None\n",
+        "for _pattern in (\"/kaggle/input/polyglot-bug-patterns/*.whl\",\n",
+        "                 \"/kaggle/input/*/*.whl\",\n",
+        "                 \"*.whl\", \"../*.whl\"):\n",
+        "    _hits = glob.glob(_pattern)\n",
+        "    if _hits:\n",
+        "        _wheel = _hits[0]\n",
+        "        break\n",
+        "\n",
+        "if _wheel is None:\n",
+        f"    _wheel = {VCS_URL!r}\n",
+        "\n",
+        "print(f\"installing {_wheel}\")\n",
+        "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _wheel],\n",
         "               check=True)\n",
         "# Optional, all degrade gracefully:\n",
         "#   duckdb  pillow  faster-whisper  playwright\n",
@@ -121,7 +137,22 @@ def kernel_metadata(owner: str) -> dict:
         # whole time - the same silently-ignored-key bug as "public" above.
         # A `kaggle kernels pull -m` is the only way to see this: the stored
         # document has enable_internet and no enable_free_internet at all.
+        #
+        # It stays off. The demo is a local loopback scan and needs no network
+        # at runtime, so there is no reason to hand the kernel one. The cost is
+        # that pip cannot reach a URL here - which is why the wheel is attached
+        # below rather than fetched.
         "enable_internet": False,
+        # Attach our own dataset, so the wheel arrives as a file and the
+        # notebook installs offline.
+        #
+        # This is the mechanism that makes a 17 KB notebook possible. Both
+        # alternatives failed in practice: inlining 110 KB of base64 produced a
+        # notebook nobody could read or diff, and switching the kernel to a git
+        # ref made `git clone` exit 128 under a kernel that deliberately has no
+        # internet. Kaggle mounts an attached dataset for free and needs no
+        # network to do it, so that is what this uses.
+        "dataset_sources": [f"{owner}/polyglot-bug-patterns"],
         "competition_data": [],
     }
 
@@ -215,14 +246,15 @@ def main() -> int:
 
     print(f"kernel    : {metadata['id']}")
     print(f"subtitle  : {len(metadata['subtitle'])} chars (kaggle wants 20-80)")
-    print(f"assembled : {code_cells} code cells, installs from the pinned tag, outputs cleared")
+    print(f"assembled : {code_cells} code cells, offline install from the attached dataset")
     print(f"           -> {OUT}")
     print()
     print("  push with:")
     print("    kaggle kernels push -p kaggle_kernel")
     print()
-    print(f"  the notebook pip-installs {REPO_TAG} from GitHub, then boots its")
-    print("  own vulnerable target on localhost. nothing leaves the kernel.")
+    print("  the notebook pip-installs the wheel from the attached dataset (no")
+    print("  network needed) and falls back to the Git tag elsewhere. then it")
+    print("  boots its own vulnerable target on localhost.")
     return 0
 
 

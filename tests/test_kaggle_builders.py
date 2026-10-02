@@ -318,6 +318,39 @@ def test_kernel_title_and_subtitle_lengths():
     assert 20 <= len(meta["subtitle"]) <= 80
 
 
+def test_kernel_is_offline_and_therefore_carries_a_wheel_path():
+    """enable_internet off means pip cannot reach a URL. Those are one fact.
+
+    Turning the network on would have been the easy fix for `git clone` exiting
+    128, and the wrong one: the demo is a loopback scan that needs no network at
+    runtime, and a security scanner is the last thing that should quietly
+    acquire one. The wheel is attached as a dataset instead, which Kaggle
+    mounts without a network.
+    """
+    meta = kn.kernel_metadata("simonmarc")
+    assert meta["enable_internet"] is False, (
+        "the kernel has no reason for network access; if that changes, say why "
+        "in the changelog rather than flipping this")
+    assert meta["dataset_sources"] == ["simonmarc/polyglot-bug-patterns"], (
+        "the wheel has to come from somewhere, and the attached dataset is how "
+        "it arrives without a network")
+    assert meta["competition_data"] == []
+
+
+def test_kernel_install_cell_has_a_file_path_not_only_a_url():
+    """A URL-only cell fails with git clone exit 128 under enable_internet off.
+
+    Found by pushing it, which is the only way this was going to be found: it
+    works perfectly on any developer machine that has a network.
+    """
+    nb = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
+    if not nb.is_file():
+        pytest.skip("run: python tools/build_kaggle_kernel.py")
+    src = _notebook_source(nb)
+    assert "*.whl" in src, "no wheel glob means no offline install path"
+    assert "kaggle/input" in src, "the glob must look where Kaggle mounts inputs"
+
+
 def test_kernel_is_public():
     """Kernels are private by default and the CLI has no visibility flag.
 
