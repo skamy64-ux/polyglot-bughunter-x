@@ -233,7 +233,13 @@ def test_kernel_metadata_satisfies_kaggles_rules():
 def test_dataset_keywords_are_lowercase_and_short():
     # kaggle silently drops unrecognised tags and caps how many new categories
     # one upload may create; an 8-item list failed outright
-    meta = json.loads((ROOT / "kaggle_dataset" / "dataset-metadata.json").read_text())
+    meta_path = ROOT / "kaggle_dataset" / "dataset-metadata.json"
+    if not meta_path.is_file():
+        # CI checks out a clean tree; the build folders are gitignored, so this
+        # has to skip rather than blow up on a missing file. Caught by the first
+        # CI run, where this was the only failure on 3.11, 3.12 and 3.13.
+        pytest.skip("run: python tools/build_kaggle.py")
+    meta = json.loads(meta_path.read_text())
     assert len(meta["keywords"]) <= 4
     for kw in meta["keywords"]:
         assert kw == kw.lower(), f"{kw!r} must be lowercase"
