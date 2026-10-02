@@ -8,8 +8,14 @@ data as `hf_dataset/`, plus a README written for Kaggle's renderer.
 
 ```bash
 python tools/build_kaggle.py                       # build
-kaggle datasets create -p kaggle_dataset           # upload (needs kaggle.json)
+kaggle datasets create -u -p kaggle_dataset        # first upload, public
+kaggle datasets version -p kaggle_dataset         # later updates
 ```
+
+Auth comes from `~/.kaggle/access_token` (a single line, chmod 600), or
+`~/.kaggle/kaggle.json`, or `KAGGLE_API_TOKEN`. The CLI checks all three, so no
+env var is needed once the file exists. Note `-u`: `kaggle datasets create` is
+private by default and the `"private": false` in the metadata is ignored.
 
 Kaggle's audience is different from HF's: mostly data scientists doing EDA and
 people training models. So this ships the payload catalogue, the findings table
@@ -289,11 +295,9 @@ def main() -> int:
         # Kaggle validates every keyword against a fixed tag vocabulary and
         # silently drops the rest, so these are the ones it actually accepts for
         # this subject. "cyber security" (two words) is the real slug - the
-        # obvious "cybersecurity" is rejected.
-        # Kaggle validates every keyword against a fixed tag vocabulary and
-        # silently drops the rest. "cyber security" (two words) is the real slug;
-        # the obvious "cybersecurity" is rejected. Kept short on purpose:
-        # Kaggle also caps the number of *new* categories one upload can create.
+        # obvious "cybersecurity" is rejected. Kept short on purpose: Kaggle also
+        # caps how many *new* categories a single upload may create, and a longer
+        # list failed with "exceeded the max category limit".
         "keywords": ["cyber security", "computer science", "programming", "text"],
         # kaggle validates this length before it accepts the upload, so assert it
         # here rather than discovering it as a CLI error

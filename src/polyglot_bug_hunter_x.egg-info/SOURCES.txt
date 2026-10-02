@@ -36,6 +36,7 @@ src/polyglot_bug_hunter_x.egg-info/top_level.txt
 tests/test_cli.py
 tests/test_detection.py
 tests/test_i18n.py
+tests/test_kaggle_builders.py
 tests/test_modalities.py
 tests/test_reports.py
 tests/test_safety.py

@@ -254,6 +254,29 @@ as a DoS tool.
 | 📓 [`hf_demo.ipynb`](notebooks/hf_demo.ipynb) | Runnable walkthrough. Works on HF Jupyter, Colab, Kaggle. |
 | 💻 [GitHub](https://github.com/simonmarc/polyglot-bughunter-x) | Source, issues, PRs. |
 
+### Kaggle
+
+| Repo | What it is |
+|---|---|
+| 📊 [`polyglot-bug-patterns`](https://www.kaggle.com/datasets/simonmarc/polyglot-bug-patterns) | The dataset: 11 files, JSONL **and** Parquet, public. |
+| 📓 [`polyglot-bug-patterns-demo`](https://www.kaggle.com/code/simonmarc/polyglot-bug-patterns-demo) | A Kernel that runs the whole detector end to end on Kaggle's free CPU. |
+
+The Kernel inlines the package as a base64 wheel inside the notebook. That is
+not a stylistic choice: Kaggle uploads the notebook and nothing else, so a
+`pip install ./package` fails with `File './package' does not exist` and a
+side-by-side `.whl` leaves `glob` empty. Rebuild and push with:
+
+```bash
+python tools/build_kaggle.py            # dataset
+python tools/build_kaggle_kernel.py     # kernel (builds a wheel, inlines it)
+kaggle datasets version -p kaggle_dataset
+kaggle kernels push -p kaggle_kernel
+```
+
+Auth comes from `~/.kaggle/access_token` (one line, `chmod 600`) or
+`~/.kaggle/kaggle.json` or `KAGGLE_API_TOKEN` — the CLI checks all three, so no
+environment variable is needed once the file exists.
+
 ```python
 from datasets import load_dataset
 ds = load_dataset("Kicaulah/polyglot-bug-patterns", "payloads")

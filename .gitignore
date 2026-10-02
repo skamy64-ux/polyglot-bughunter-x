@@ -14,4 +14,13 @@ artifacts/
 pbhx_canary.png
 kaggle_dataset/
 assets/demo-frames/
-kaggle_dataset/
+
+# build artifacts of tools/build_kaggle_kernel.py: the wheel is generated, and
+# the notebook inlines a copy of it as base64
+kaggle_kernel/
+*.whl
+build/
+*.egg-info/
+
+# written by the notebook when it runs inside the kernel folder
+kaggle_kernel/artifacts/
