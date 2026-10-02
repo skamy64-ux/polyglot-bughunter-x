@@ -133,6 +133,14 @@ def kernel_metadata(owner: str) -> dict:
         "enable_free_internet": False,
         "enable_gpu": ACCELERATOR == "gpu",
         "enable_tpu": ACCELERATOR == "tpu",
+        # Kernels are private by default and the CLI has no visibility flag, so
+        # this key is the only way to publish one. Without it the page 404s for
+        # everyone but the owner even though the run is COMPLETE.
+        #
+        # The key is is_private, not "public": writing "public": "true" is
+        # silently ignored, which is what a `kaggle kernels pull` reveals. The
+        # round-tripped metadata does not even contain a "public" key.
+        "is_private": False,
         "competition_data": [],
     }
 

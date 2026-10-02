@@ -122,6 +122,37 @@ def test_kernel_title_and_subtitle_lengths():
     assert 20 <= len(meta["subtitle"]) <= 80
 
 
+def test_kernel_is_public():
+    """Kernels are private by default and the CLI has no visibility flag.
+
+    The key is `is_private`, NOT `public`. Writing "public": "true" is
+    silently ignored - the push succeeds, the run is COMPLETE, and the page
+    still 404s for everyone but the owner. Confirmed by round-tripping the
+    metadata: a pulled kernel has `is_private` and no `public` key at all.
+    """
+    meta = kn.kernel_metadata("simonmarc")
+    assert meta["is_private"] is False
+    assert "public" not in meta, (
+        "'public' is silently ignored; use is_private=False or the kernel "
+        "stays private and 404s")
+
+
+def test_kernel_metadata_survives_a_pull_round_trip():
+    """A pulled kernel uses different key names than the ones we send.
+
+    Recorded because it is how the is_private/public mixup was found: the
+    round-tripped document is the only honest description of what Kaggle
+    actually stores.
+    """
+    meta = kn.kernel_metadata("simonmarc")
+    # these are the names a pulled kernel comes back with
+    pulled_names = {"is_private", "enable_internet", "docker_image",
+                    "machine_shape", "id_no"}
+    assert pulled_names & set(meta), "we send none of the keys Kaggle stores"
+    # enable_free_internet is ours; Kaggle calls it enable_internet
+    assert "enable_free_internet" in meta
+
+
 def test_kernel_requests_no_accelerator_and_no_internet():
     # the demo is a local loopback scan: a GPU is wasted quota and internet
     # access is not needed for a self-contained kernel
