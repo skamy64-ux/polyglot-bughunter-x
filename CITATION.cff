@@ -11,7 +11,7 @@ type: software
 version: 1.0.0
 date-released: "2026-10-02"
 license: MIT
-repository-code: "https://github.com/simonmarc/polyglot-bughunter-x"
+repository-code: "https://github.com/skamy64-ux/polyglot-bughunter-x"
 url: "https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static"
 keywords:
   - web security
@@ -22,4 +22,4 @@ keywords:
   - prompt injection
 authors:
   - name: "PolyglotBugHunter-X contributors"
-    website: "https://github.com/Kicaulah"
+    website: "https://github.com/skamy64-ux/polyglot-bughunter-x"

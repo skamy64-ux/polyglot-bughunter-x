@@ -110,7 +110,7 @@ README = """# 🕷️ Polyglot Bug Patterns — 43 non-destructive web attack pa
 
 **[Live demo](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)**
 · **[HF version](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)**
-· **[GitHub](https://github.com/simonmarc/polyglot-bughunter-x)**
+· **[GitHub](https://github.com/skamy64-ux/polyglot-bughunter-x)**
 
 ---
 
@@ -212,7 +212,7 @@ for value in pi.value:
 ## 📜 Licence
 
 MIT. Contributions welcome — see
-[CONTRIBUTING.md](https://github.com/simonmarc/polyglot-bughunter-x/blob/main/CONTRIBUTING.md).
+[CONTRIBUTING.md](https://github.com/skamy64-ux/polyglot-bughunter-x/blob/main/CONTRIBUTING.md).
 The bar: non-destructive (an automated gate enforces it), documented with a CWE
 and OWASP mapping, and tagged for what detector signal it should produce.
 

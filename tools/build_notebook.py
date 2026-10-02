@@ -297,7 +297,7 @@ store.close()
 * 🎨 [Space — try it live](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)
 * 🗃️ [Dataset — load the payload vocabulary](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)
 * 🧠 [Model — config + scoring profile](https://huggingface.co/Kicaulah/polyglot-bughunter-x)
-* 💻 [GitHub — source, issues, PRs](https://github.com/simonmarc/polyglot-bughunter-x)
+* 💻 [GitHub — source, issues, PRs](https://github.com/skamy64-ux/polyglot-bughunter-x)
 
 ```python
 from datasets import load_dataset

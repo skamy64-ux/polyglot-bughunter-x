@@ -83,12 +83,27 @@ def probe(url: str, timeout: int = 12) -> tuple[int, str]:
     if "127.0.0.1" in url or "localhost" in url:
         return 200, "local demo target, alive only during a scan"
     try:
-        req = urllib.request.Request(url, method="HEAD",
-                                     headers={"User-Agent": "pbhx-linkcheck/1.0"})
+        # GET, not HEAD, and a browser-shaped User-Agent.
+        #
+        # Kaggle does not implement HEAD: it answers 404 to every HEAD request
+        # whether or not the repo exists, so a HEAD-based check calls a live
+        # dataset deleted. It also 404s any agent that does not look like a
+        # browser, which is indistinguishable from a missing page. Both were
+        # found by watching this tool disagree with a plain `curl` on the same
+        # URL, and both point the wrong way - reporting a healthy link as dead
+        # trains people to ignore the output.
+        req = urllib.request.Request(url, method="GET", headers={
+            "User-Agent": ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"),
+            "Accept": "text/html,application/xhtml+xml,*/*",
+        })
     except ValueError as exc:
         return 0, f"unparseable: {exc}"
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
+            # GET downloads the body; a link check only cares about the status,
+            # and pulling a 100 MB dataset to learn it exists is rude.
+            r.read(2048)
             return r.status, ""
     except urllib.error.HTTPError as e:
         return e.code, ""

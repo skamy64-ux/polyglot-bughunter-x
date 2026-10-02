@@ -24,6 +24,33 @@ rel = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rel)
 
 
+def test_the_three_accounts_are_not_conflated():
+    """HF, Kaggle and GitHub are three different accounts.
+
+    They were briefly the same string in two of the three places, and a GitHub
+    link pointing at the Kaggle owner ships silently: the URL parses fine, it
+    just 404s. Asserted here so the next rename is a deliberate edit rather
+    than a find-and-replace that catches the wrong namespace.
+    """
+    assert rel.HF == "Kicaulah"
+    assert rel.KAGGLE == "simonmarc"
+    assert rel.GITHUB == "skamy64-ux"
+    assert len({rel.HF, rel.KAGGLE, rel.GITHUB}) == 3
+
+
+def test_no_github_url_points_at_another_service_owner():
+    """A GitHub URL must never name the Kaggle or HF account."""
+    for name, url in rel.TARGETS.items():
+        if "github.com" in url:
+            assert rel.GITHUB in url, f"{name} -> {url}"
+    root_src = (ROOT / "README.md").read_text()
+    import re
+    for m in re.finditer(r"github\.com/([A-Za-z0-9_-]+)", root_src):
+        owner = m.group(1)
+        assert owner in (rel.GITHUB, "OpenSSF", "oasis-tcs", "sembiance"), \
+            f"README points at github.com/{owner}, expected {rel.GITHUB}"
+
+
 def test_every_destination_is_https():
     for name, url in rel.TARGETS.items():
         assert url.startswith("https://"), f"{name} is not https: {url}"

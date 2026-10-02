@@ -52,7 +52,7 @@ pbhx = "polyglot_bug_hunter.cli:main"
 Homepage = "https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static"
 Model = "https://huggingface.co/Kicaulah/polyglot-bughunter-x"
 Dataset = "https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns"
-Repository = "https://github.com/simonmarc/polyglot-bughunter-x"
+Repository = "https://github.com/skamy64-ux/polyglot-bughunter-x"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

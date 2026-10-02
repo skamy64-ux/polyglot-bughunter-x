@@ -20,7 +20,7 @@ that make it fall over.
 ## Setup
 
 ```bash
-git clone https://github.com/simonmarc/polyglot-bughunter-x
+git clone https://github.com/skamy64-ux/polyglot-bughunter-x
 cd polyglot-bughunter-x
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt

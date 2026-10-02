@@ -67,7 +67,7 @@ configs:
 **[🐝 Dataset](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)** ·
 **[🎨 Space](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)** ·
 **[🧠 Model](https://huggingface.co/Kicaulah/polyglot-bughunter-x)** ·
-**[💻 GitHub](https://github.com/simonmarc/polyglot-bughunter-x)**
+**[💻 GitHub](https://github.com/skamy64-ux/polyglot-bughunter-x)**
 
 ---
 

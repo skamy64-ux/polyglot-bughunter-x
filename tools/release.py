@@ -42,8 +42,15 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+#: Three different accounts, on three different services. Keeping them as
+#: separate constants exists because they were once the same string in two
+#: places, and a GitHub link pointing at the Kaggle owner is exactly the sort of
+#: thing that ships silently: the URL still parses, it just 404s.
 HF = "Kicaulah"
 KAGGLE = "simonmarc"
+GITHUB = "skamy64-ux"
+REPO = "polyglot-bughunter-x"
 
 #: Every destination, with the URL to read it back from. These are verified
 #: anonymously on purpose: an authenticated 200 proves nothing, because the

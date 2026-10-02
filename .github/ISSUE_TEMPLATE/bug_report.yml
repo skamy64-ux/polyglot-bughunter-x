@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         **Security reports go to `security@polyglot-bughunter-x.dev`, not here.**
-        See [SECURITY.md](https://github.com/simonmarc/polyglot-bughunter-x/blob/main/SECURITY.md).
+        See [SECURITY.md](https://github.com/skamy64-ux/polyglot-bughunter-x/blob/main/SECURITY.md).
   - type: textarea
     id: what
     attributes:
