@@ -25,11 +25,18 @@ All notable changes to PolyglotBugHunter-X. Format follows
   so the dirty-tree guard can actually pass.
 - `pbhx`, a command line with CI-shaped exit codes (0 clean, 1 findings at or
   above `--fail-on`, 2 refused), plus `run.py` which needs no install at all.
-- Packaging made PyPI-ready: SPDX licence expression, `twine check --strict` in
-  CI, and a `publish.yml` using trusted publishing so no API token exists to
-  leak.
+- Published on PyPI. `pip install polyglot-bug-hunter-x` works with no
+  extras and no account.
 
 ### Fixed
+- `Natural Language :: Chinese` is not a trove classifier; PyPI wants
+  `Chinese (Simplified)` or `(Traditional)`. The server rejects the whole
+  upload for it and the version cannot be reused, so
+  `tools/check_classifiers.py` now diffs every classifier against the list
+  PyPI serves, and runs in the release gate.
+- `__version__` was a literal in `hunter.py` while the tag and wheel filename
+  derive from `pyproject.toml`, so a version bump could ship a package that
+  reported itself as the previous release. One source of truth now.
 - `tools/publish.py` printed "uploaded" after the upload had already raised:
   `space_sdk` belongs to `create_repo`, not `upload_folder`, so every Space push
   failed silently while the success line still appeared.

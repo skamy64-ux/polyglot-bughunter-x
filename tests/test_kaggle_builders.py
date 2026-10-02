@@ -481,3 +481,66 @@ def test_kernel_writes_only_the_notebook_and_metadata(tmp_path, monkeypatch):
     assert "artifacts" not in names, "stale output dirs must not be pushed"
     assert "pbhx_canary.png" not in names
     assert {"hf_demo.ipynb", "kernel-metadata.json"} <= names
+
+
+# --- trove classifiers -----------------------------------------------------
+# "Natural Language :: Chinese" is not a PyPI classifier. PyPI rejects the
+# entire upload for it with a 400, and a version cannot be reused after a
+# rejected release, so this is checked before every publish.
+
+
+def _classifier_checker():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "check_classifiers", ROOT / "tools" / "check_classifiers.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_classifier_parser_handles_multi_word_first_segment():
+    """The first segment is often several words: "Development Status".
+
+    A pattern that assumes one word matches nothing and reports an empty list,
+    which looks exactly like a pyproject with no classifiers in it.
+    """
+    cc = _classifier_checker()
+    found = cc.declared()
+    assert found, "the parser found no classifiers at all"
+    assert "Development Status :: 4 - Beta" in found
+    assert "Intended Audience :: Developers" in found
+
+
+def test_classifier_parser_handles_parentheses():
+    """Some valid classifiers contain parentheses.
+
+    "Natural Language :: Chinese (Simplified)" is the one PyPI requires in
+    place of the bare "Chinese". A character set without () drops it silently.
+    """
+    cc = _classifier_checker()
+    found = cc.declared()
+    assert any("(" in c for c in found), "parenthesised classifiers were dropped"
+
+
+def test_every_declared_classifier_matches_its_own_shape():
+    cc = _classifier_checker()
+    for c in cc.declared():
+        assert "::" in c, f"{c!r} is not a classifier"
+        assert not c.endswith("::"), f"{c!r} has a trailing separator"
+
+
+def test_the_rejected_classifier_is_not_in_pyproject():
+    """The exact string that caused a 400 on the first upload attempt."""
+    txt = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert '"Natural Language :: Chinese",' not in txt, (
+        "PyPI rejects this exact string; it wants Chinese (Simplified)")
+    assert '"Natural Language :: Chinese (Simplified)",' in txt
+
+
+def test_classifier_check_is_wired_into_the_release_gate():
+    """A check nobody runs is not a check."""
+    src = (ROOT / "tools" / "release.py").read_text()
+    assert "check_classifiers.py" in src
+    wf = (ROOT / ".github" / "workflows" / "publish.yml").read_text()
+    assert "check_classifiers.py" in wf

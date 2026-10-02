@@ -60,6 +60,9 @@ jobs:
           pip install -e . ruff pytest
           ruff check src tests tools run.py
           python -m pytest -q
+          # PyPI rejects the whole upload for one invalid classifier, and the
+          # version is then burned. Cheaper to catch it here.
+          python tools/check_classifiers.py
 
       - name: build
         run: |

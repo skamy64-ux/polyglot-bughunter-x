@@ -108,22 +108,28 @@ Missing keys fall back to English rather than showing raw `snake_case` to a user
 ### Install
 
 ```bash
-# from a release tag. works today, needs no account and no token.
-pip install "polyglot-bug-hunter-x @ git+https://github.com/skamy64-ux/polyglot-bughunter-x@v1.0.1"
+pip install polyglot-bug-hunter-x            # from PyPI
+pip install "polyglot-bug-hunter-x==1.0.1"   # or pin the exact release
+```
 
-# from a clone
+→ [pypi.org/project/polyglot-bug-hunter-x](https://pypi.org/project/polyglot-bug-hunter-x/)
+
+From a source checkout:
+
+```bash
 git clone https://github.com/skamy64-ux/polyglot-bughunter-x
 cd polyglot-bughunter-x
 pip install .
 ```
 
-`pip install polyglot-bug-hunter-x` from PyPI is not available yet. The
-publishing workflow is in place and every gate passes; the remaining step is a
-one-time browser confirmation on pypi.org, which needs an account.
+Or from a tag, which is what CI and the notebooks do:
 
-The tag is a tag on purpose. Installing from a branch means a notebook or a
-script you published last month can start running different code without any
-diff to review.
+```bash
+pip install "polyglot-bug-hunter-x @ git+https://github.com/skamy64-ux/polyglot-bughunter-x@v1.0.1"
+```
+
+Pinning matters. Installing from a branch means code you pinned last month can
+start behaving differently with no diff to review.
 
 The scanning core is **stdlib-only**. `pip install` pulls in nothing. Every real
 dependency is an extra, and all of them degrade gracefully:

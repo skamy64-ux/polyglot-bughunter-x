@@ -240,6 +240,7 @@ def do_check() -> bool:
         run("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "tools",
                      "run.py"]),
         run("pytest", [sys.executable, "-m", "pytest", "-q"]),
+        run("trove classifiers", [sys.executable, "tools/check_classifiers.py"]),
         run("parity (js == python)", ["node", "tools/test_static_space.mjs"]),
         run("app-level", ["node", "tools/test_static_app.mjs"]),
         run("browser (live CDN)", [sys.executable, "tools/test_static_browser.py",
