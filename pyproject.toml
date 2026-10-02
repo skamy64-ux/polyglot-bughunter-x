@@ -32,7 +32,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-space = ["gradio>=4.44,<6"]
+space = ["gradio>=4.44,<7"]
 duckdb = ["duckdb>=1.0"]
 http = ["requests>=2.32"]
 image = ["pillow>=10.0"]
