@@ -25,12 +25,13 @@ from polyglot_bug_hunter.i18n import SUPPORTED, Translator, normalize  # noqa: E
 from polyglot_bug_hunter.models import Cvss, cvss_to_severity  # noqa: E402
 from polyglot_bug_hunter.report.render import plural  # noqa: E402
 from polyglot_bug_hunter.safety import FORBIDDEN_PAYLOAD_SUBSTRINGS  # noqa: E402
-from polyglot_bug_hunter.scanner import access  # noqa: E402
 from polyglot_bug_hunter.scanner import text as text_mod  # noqa: E402
 
 OUT = ROOT / "artifacts" / "js_reference.json"
 
-# the same 17 published vectors the pytest suite asserts on
+# The same published vectors the pytest suite asserts on. Keys must be unique:
+# a dict literal drops duplicates silently, which is how a test ends up checking
+# fewer cases than it reads like. tests/test_scoring.py asserts this count.
 REFERENCE = {
     "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H": 9.8,
     "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L": 7.3,
@@ -47,13 +48,11 @@ REFERENCE = {
     "AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H": 10.0,
     "AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H": 9.9,
     "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N": 6.1,
-    "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H": 8.8,
-    "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N": 0.0,
 }
 
 
 def parse_vector(vector: str) -> dict[str, str]:
-    return {k: v for k, v in (kv.split(":") for kv in vector.split("/"))}
+    return dict(kv.split(":") for kv in vector.split("/"))
 
 
 def cvss_of(m: dict[str, str]) -> float:
@@ -114,9 +113,9 @@ def main() -> int:
 
     # ---- classify() verdicts against the bundled demo target ----------
     from polyglot_bug_hunter.config import ScanConfig
+    from polyglot_bug_hunter.demo_target import DemoServer
     from polyglot_bug_hunter.net import Http
     from polyglot_bug_hunter.safety import ScanPolicy
-    from polyglot_bug_hunter.demo_target import DemoServer
 
     classify_rows = []
     with DemoServer() as srv:
@@ -195,8 +194,7 @@ def main() -> int:
 
     # ---- report math ---------------------------------------------------
     def fsev(sev, conf="high", n=1):
-        from polyglot_bug_hunter.models import (Confidence, Finding, Modality,
-                                                ScanReport, Severity)
+        from polyglot_bug_hunter.models import Confidence, Finding, Modality, ScanReport, Severity
         rep = ScanReport(target="t")
         rep.findings = [
             Finding(title=f"t{i}", severity=Severity(sev), modality=Modality.TEXT,

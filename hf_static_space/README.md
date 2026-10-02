@@ -21,13 +21,15 @@ tags:
 
 # 🕷️🔥 PolyglotBugHunter-X
 
+![demo](https://kicaulah-polyglot-bughunter-x-static.static.hf.space/demo.gif)
+
 **Bro, imagine an AI that can *see*, *hear*, and *read* a website while hunting bugs
 at the same time. Yeah, that's PolyglotBugHunter-X.**
 
 👉 **[🎨 The live demo](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)**
 👉 **[📊 Dataset](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)** ·
 **[🧠 Model](https://huggingface.co/Kicaulah/polyglot-bughunter-x)** ·
-**[💻 GitHub](https://github.com/Kicaulah/polyglot-bughunter-x)**
+**[💻 GitHub](https://github.com/simonmarc/polyglot-bughunter-x)**
 
 ---
 
@@ -113,7 +115,7 @@ scan producing findings, and the canvas canary drawing real invisible glyphs.
 ## ❓ What this Static Space can't do
 
 * **No real scanning.** There is no server, so no requests to real hosts. Use the
-  [Python package](https://github.com/Kicaulah/polyglot-bughunter-x) for that.
+  [Python package](https://github.com/simonmarc/polyglot-bughunter-x) for that.
 * **No Playwright screenshots** — no browser-to-browser control, so the image
   modality works on rendered canvas rather than real page screenshots.
 * **No DuckDB history** — reports download, they don't persist.
@@ -135,8 +137,8 @@ Found a bug class we miss, or a payload worth adding? Every payload goes through
 the same automated safety gate, so keep it non-destructive.
 
 * 💬 [Discussions](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static/discussions)
-* 🔀 [PRs](https://github.com/Kicaulah/polyglot-bughunter-x/pulls)
-* 🐛 [Issues](https://github.com/Kicaulah/polyglot-bughunter-x/issues)
+* 🔀 [PRs](https://github.com/simonmarc/polyglot-bughunter-x/pulls)
+* 🐛 [Issues](https://github.com/simonmarc/polyglot-bughunter-x/issues)
 
 ## 📝 Changelog
 

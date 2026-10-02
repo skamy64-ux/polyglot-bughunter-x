@@ -71,5 +71,5 @@ First flight. 🚀
 - The crawler is same-origin by default, so a bug reachable only cross-origin is
   not found. `same_origin_only=False` exists in `ScanConfig` for those cases.
 
-[Unreleased]: https://github.com/Kicaulah/polyglot-bughunter-x/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Kicaulah/polyglot-bughunter-x/releases/tag/v1.0.0
+[Unreleased]: https://github.com/simonmarc/polyglot-bughunter-x/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/simonmarc/polyglot-bughunter-x/releases/tag/v1.0.0

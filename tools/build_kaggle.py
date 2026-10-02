@@ -19,6 +19,7 @@ and a runnable notebook, with column descriptions up front rather than buried.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -101,7 +102,7 @@ README = """# 🕷️ Polyglot Bug Patterns — 43 non-destructive web attack pa
 
 **[Live demo](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)**
 · **[HF version](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)**
-· **[GitHub](https://github.com/Kicaulah/polyglot-bughunter-x)**
+· **[GitHub](https://github.com/simonmarc/polyglot-bughunter-x)**
 
 ---
 
@@ -203,12 +204,43 @@ for value in pi.value:
 ## 📜 Licence
 
 MIT. Contributions welcome — see
-[CONTRIBUTING.md](https://github.com/Kicaulah/polyglot-bughunter-x/blob/main/CONTRIBUTING.md).
+[CONTRIBUTING.md](https://github.com/simonmarc/polyglot-bughunter-x/blob/main/CONTRIBUTING.md).
 The bar: non-destructive (an automated gate enforces it), documented with a CWE
 and OWASP mapping, and tagged for what detector signal it should produce.
 
 <sub>MIT · 🕷️ PolyglotBugHunter-X · authorized security testing only</sub>
 """
+
+
+def kaggle_username() -> str:
+    """Read the owner straight out of the kaggle config.
+
+    Hard-coding it is how a dataset ends up trying to create into somebody
+    else's namespace and failing with a 403 that reads like a permissions bug.
+    """
+    env = os.getenv("KAGGLE_USERNAME")
+    if env:
+        return env
+    for path in (Path.home() / ".kaggle" / "kaggle.json",
+                 Path.home() / ".config" / "kaggle" / "kaggle.json"):
+        if path.is_file():
+            try:
+                return json.loads(path.read_text())["username"]
+            except Exception:
+                pass
+    # no config file - the CLI may still know, e.g. when auth came from
+    # KAGGLE_API_TOKEN
+    import re
+    import subprocess
+    try:
+        out = subprocess.run(["kaggle", "config", "view"], capture_output=True,
+                             text=True, timeout=60).stdout
+        m = re.search(r"username:\s*(\S+)", out)
+        if m and m.group(1) != "None":
+            return m.group(1)
+    except Exception:
+        pass
+    return "YOUR_KAGGLE_USERNAME"
 
 
 def _table(spec: dict[str, str]) -> str:
@@ -252,22 +284,32 @@ def main() -> int:
 
     metadata = {
         "title": "Polyglot Bug Patterns",
-        "id": "kicauhlah/polyglot-bug-patterns",
+        "id": f"{kaggle_username()}/polyglot-bug-patterns",
         "licenses": [{"name": "MIT"}],
-        "keywords": [
-            "web-security", "security", "bug-bounty", "payloads", "polyglot",
-            "adversarial", "prompt-injection", "cvss", "owasp", "cwe",
-            "sql-injection", "xss", "ssrf",
-        ],
+        # Kaggle validates every keyword against a fixed tag vocabulary and
+        # silently drops the rest, so these are the ones it actually accepts for
+        # this subject. "cyber security" (two words) is the real slug - the
+        # obvious "cybersecurity" is rejected.
+        # Kaggle validates every keyword against a fixed tag vocabulary and
+        # silently drops the rest. "cyber security" (two words) is the real slug;
+        # the obvious "cybersecurity" is rejected. Kept short on purpose:
+        # Kaggle also caps the number of *new* categories one upload can create.
+        "keywords": ["cyber security", "computer science", "programming", "text"],
+        # kaggle validates this length before it accepts the upload, so assert it
+        # here rather than discovering it as a CLI error
         "subtitle": (
-            "43 non-destructive web attack payloads (24 polyglot) across 8 bug "
-            "classes, plus real detector output from a 4-modality scan"
+            "43 non-destructive web attack payloads (24 polyglot) plus real "
+            "detector output"
         ),
         "description": (
             "A curated catalogue of non-destructive detection payloads for "
             "authorized web security testing, with CVSS v3.1 scoring, CWE and "
             "OWASP mappings, and a companion table of real findings showing which "
-            "evidence proves each bug. Ships JSONL and Parquet."
+            "evidence proves each bug. Ships JSONL and Parquet.\n\n"
+            "Every payload is tagged with the marker PBHX7 so reflection is "
+            "unambiguous, and every one passes the same non-destructive gate the "
+            "scanner applies at runtime. No DROP, no DELETE, no sleep(), no reverse "
+            "shells. See the companion Space for the working detector."
         ),
         "resources": [
             {"path": "payloads.parquet", "description": "43 payloads, 16 columns"},
@@ -301,6 +343,11 @@ def main() -> int:
     (OUT / "LICENSE").write_text((ROOT / "LICENSE").read_text(encoding="utf-8"),
                                  encoding="utf-8")
 
+    sub = metadata["subtitle"]
+    assert 20 <= len(sub) <= 80, f"kaggle wants a 20-80 char subtitle, got {len(sub)}"
+    assert 20 <= len(metadata["title"]) <= 80, f"bad title length {len(metadata['title'])}"
+    print(f"owner    : {kaggle_username()}")
+    print(f"subtitle : {len(sub)} chars (kaggle wants 20-80)")
     print(f"kaggle dataset assembled: {copied + 3} files, "
           f"{total / 1024:.0f} KB -> {OUT}")
     print(f"  rows: {counts}")

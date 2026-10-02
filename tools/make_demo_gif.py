@@ -16,13 +16,12 @@ from __future__ import annotations
 
 import argparse
 import functools
-import zlib
 import http.server
 import socketserver
 import struct
 import sys
 import threading
-import time
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -133,7 +132,6 @@ def _lzw_encode(indices: bytes, min_code_size: int) -> bytes:
         code_size = min_code_size + 1
 
     reset()
-    bits: list[int] = []
     acc = 0
     nbits = 0
     out = bytearray()
@@ -323,7 +321,7 @@ def record(url: str, out_dir: Path) -> int:
     palette = build_palette(pixels_seen)
     gif = ROOT / "assets" / "demo.gif"
     ASSETS.mkdir(parents=True, exist_ok=True)
-    write_gif(gif, frames, WIDTH, frames and 620 or 620, palette, int(100 / FPS))
+    write_gif(gif, frames, WIDTH, (frames and 620) or 620, palette, int(100 / FPS))
     size = gif.stat().st_size
     print(f"\n  frames  : {len(frames)}")
     print(f"  written : {gif}  ({size / 1024:.0f} KB)")

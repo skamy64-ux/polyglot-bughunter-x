@@ -423,7 +423,7 @@ def about_md(lang: str) -> str:
              "- 📊 Model: `huggingface.co/Kicaulah/polyglot-bughunter-x`",
              "- 🗃️ Dataset: `huggingface.co/datasets/Kicaulah/polyglot-bug-patterns`",
              "- 🕷️ Space: this page",
-             "- 💻 GitHub: `github.com/Kicaulah/polyglot-bughunter-x`",
+             "- 💻 GitHub: `github.com/simonmarc/polyglot-bughunter-x`",
              "",
              f"## {t.get('about.citation')}",
              "",

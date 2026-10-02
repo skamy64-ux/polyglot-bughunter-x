@@ -10,7 +10,7 @@
 [![HF Space](https://img.shields.io/badge/🤗%20Space-try%20it-red)](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)
 [![HF Model](https://img.shields.io/badge/🧠%20Model-yellow)](https://huggingface.co/Kicaulah/polyglot-bughunter-x)
 [![HF Dataset](https://img.shields.io/badge/🗃️%20Dataset-blue)](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)
-[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github)](https://github.com/Kicaulah/polyglot-bughunter-x)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github)](https://github.com/simonmarc/polyglot-bughunter-x)
 [![License MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/downloads/)
 
@@ -98,7 +98,7 @@ Missing keys fall back to English rather than showing raw `snake_case` to a user
 ## ⚡ Quick start
 
 ```bash
-git clone https://github.com/Kicaulah/polyglot-bughunter-x
+git clone https://github.com/simonmarc/polyglot-bughunter-x
 cd polyglot-bughunter-x
 pip install -r requirements.txt          # gradio only; everything else is optional
 ```
@@ -199,7 +199,7 @@ as a DoS tool.
 | 🧠 [`polyglot-bughunter-x`](https://huggingface.co/Kicaulah/polyglot-bughunter-x) | Model repo: `config.json`, 43-payload vocabulary, CVSS + scoring profile. |
 | 🗃️ [`polyglot-bug-patterns`](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns) | Dataset: payloads + real detector output, JSONL **and** Parquet. |
 | 📓 [`hf_demo.ipynb`](notebooks/hf_demo.ipynb) | Runnable walkthrough. Works on HF Jupyter, Colab, Kaggle. |
-| 💻 [GitHub](https://github.com/Kicaulah/polyglot-bughunter-x) | Source, issues, PRs. |
+| 💻 [GitHub](https://github.com/simonmarc/polyglot-bughunter-x) | Source, issues, PRs. |
 
 ```python
 from datasets import load_dataset

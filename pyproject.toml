@@ -49,7 +49,7 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
 Homepage = "https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static"
 Model = "https://huggingface.co/Kicaulah/polyglot-bughunter-x"
 Dataset = "https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns"
-Repository = "https://github.com/Kicaulah/polyglot-bughunter-x"
+Repository = "https://github.com/simonmarc/polyglot-bughunter-x"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -77,6 +77,8 @@ ignore = [
     "SIM105",  # explicit try/except beats contextlib.suppress for a scanner
     "SIM117",  # nested with-statement reads better here
     "RUF059",  # unused unpacked names document intent
+    "UP031",   # the codegen scripts read better with %-formatting than .format()
+    "RUF005",  # literal concatenation is clearer next to generated JS
 ]
 
 [tool.ruff.lint.per-file-ignores]

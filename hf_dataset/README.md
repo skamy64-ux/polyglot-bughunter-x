@@ -60,12 +60,14 @@ configs:
     path: data/class_index.jsonl
 ---
 
+![demo](https://kicaulah-polyglot-bughunter-x-static.static.hf.space/demo.gif)
+
 # 🗃️ Polyglot Bug Patterns
 
 **[🐝 Dataset](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)** ·
 **[🎨 Space](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)** ·
 **[🧠 Model](https://huggingface.co/Kicaulah/polyglot-bughunter-x)** ·
-**[💻 GitHub](https://github.com/Kicaulah/polyglot-bughunter-x)**
+**[💻 GitHub](https://github.com/simonmarc/polyglot-bughunter-x)**
 
 ---
 

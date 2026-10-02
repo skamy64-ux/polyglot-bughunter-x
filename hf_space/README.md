@@ -100,7 +100,7 @@ Scoring is real **CVSS v3.1** base vectors — cross-checked against RedHat's
 * 🗃️ [Dataset](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns) —
   43 payloads across 8 bug classes, plus sample scan results as JSONL + Parquet.
   `load_dataset("Kicaulah/polyglot-bug-patterns")` just works.
-* 💻 [GitHub](https://github.com/Kicaulah/polyglot-bughunter-x) —
+* 💻 [GitHub](https://github.com/simonmarc/polyglot-bughunter-x) —
   source, issue tracker, contribution guide.
 
 ## 📓 Use it in a notebook
@@ -132,8 +132,8 @@ Found a bug class we miss, or a payload worth sharing? Every payload is checked
 by the same automated safety gate before it lands, so keep it non-destructive.
 
 * 💬 [Open a Discussion](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static/discussions)
-* 🔀 [Send a PR with a new payload](https://github.com/Kicaulah/polyglot-bughunter-x/pulls)
-* 🐛 [Report a detection bug](https://github.com/Kicaulah/polyglot-bughunter-x/issues)
+* 🔀 [Send a PR with a new payload](https://github.com/simonmarc/polyglot-bughunter-x/pulls)
+* 🐛 [Report a detection bug](https://github.com/simonmarc/polyglot-bughunter-x/issues)
 
 ## 📝 Changelog
 

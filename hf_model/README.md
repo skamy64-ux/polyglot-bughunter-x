@@ -42,7 +42,7 @@ bugs at the same time. Yeah, that's **PolyglotBugHunter-X**. 🔥
 
 ![demo](https://kicaulah-polyglot-bughunter-x-static.static.hf.space/demo.gif) — one click, no install, no server, runs in your browser.
 👉 **[📊 Polyglot payload dataset](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)**
-👉 **[💻 GitHub](https://github.com/Kicaulah/polyglot-bughunter-x)**
+👉 **[💻 GitHub](https://github.com/simonmarc/polyglot-bughunter-x)**
 
 ---
 
@@ -214,7 +214,7 @@ Per-finding `confidence` is reported alongside severity precisely so you can tel
 
 * 🎨 [Space](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static)
 * 🗃️ [Dataset](https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns)
-* 💻 [GitHub](https://github.com/Kicaulah/polyglot-bughunter-x)
+* 💻 [GitHub](https://github.com/simonmarc/polyglot-bughunter-x)
 * 🤝 [Discussions — contribute a payload](https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static/discussions)
 
 Drop a ⭐ if this is useful. It genuinely helps the project get seen.

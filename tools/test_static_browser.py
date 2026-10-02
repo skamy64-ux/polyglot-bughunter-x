@@ -152,10 +152,19 @@ def main() -> int:
         page.wait_for_timeout(200)
 
         # ---- 8. downloads are real blobs
-        for kind, expect in [("md", "#pbhx-report"), ("html", "<!doctype html>"),
-                             ("json", '"risk_score"'), ("sarif", '"sarif"')]:
+        # fetch the blob and assert its *contents*, not just that a blob exists:
+        # a link to an empty blob is still a broken download
+        for kind, needle in [("md", "PolyglotBugHunter-X report"),
+                             ("html", "<!doctype html>"),
+                             ("json", '"risk_score"'),
+                             ("sarif", '"version": "2.1.0"')]:
             href = page.get_attribute(f"#dl-{kind}", "href") or ""
             check(f"{kind} download is a blob", href.startswith("blob:"), href[:24])
+            if href.startswith("blob:"):
+                body = page.evaluate(
+                    "async (u) => await (await fetch(u)).text()", href)
+                check(f"{kind} blob has real content", needle in body,
+                      f"{len(body)} chars")
 
         # ---- 9. report tabs (the report panel has to be visible first, or the
         # subtabs are inside a hidden container and cannot be clicked)
@@ -191,8 +200,6 @@ def main() -> int:
         page.wait_for_timeout(500)
         check("arabic sets dir=rtl",
               page.evaluate("document.documentElement.dir") == "rtl")
-        ar_html = page.evaluate(
-            "(async () => { const r = await fetch('data:text/html,'); return 1; })()")
         page.click('.tab[data-tab="report"]')
         page.click('.subtab[data-rtab="html"]')
         page.wait_for_timeout(300)
