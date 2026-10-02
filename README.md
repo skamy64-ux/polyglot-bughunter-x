@@ -105,7 +105,39 @@ Missing keys fall back to English rather than showing raw `snake_case` to a user
 
 ## ⚡ Quick start
 
-### The shortest path: one command, nothing installed
+### Install
+
+```bash
+# from a release tag. works today, needs no account and no token.
+pip install "polyglot-bug-hunter-x @ git+https://github.com/skamy64-ux/polyglot-bughunter-x@v1.0.1"
+
+# from a clone
+git clone https://github.com/skamy64-ux/polyglot-bughunter-x
+cd polyglot-bughunter-x
+pip install .
+```
+
+`pip install polyglot-bug-hunter-x` from PyPI is not available yet. The
+publishing workflow is in place and every gate passes; the remaining step is a
+one-time browser confirmation on pypi.org, which needs an account.
+
+The tag is a tag on purpose. Installing from a branch means a notebook or a
+script you published last month can start running different code without any
+diff to review.
+
+The scanning core is **stdlib-only**. `pip install` pulls in nothing. Every real
+dependency is an extra, and all of them degrade gracefully:
+
+```bash
+pip install "polyglot-bug-hunter-x[http]"      # requests, nicer TLS handling
+pip install "polyglot-bug-hunter-x[image]"     # pillow, EXIF and pixel analysis
+pip install "polyglot-bug-hunter-x[browser]"   # playwright, screenshot proof
+pip install "polyglot-bug-hunter-x[duckdb]"    # Parquet round-trip
+pip install "polyglot-bug-hunter-x[all]"
+pip install "polyglot-bug-hunter-x[space]"     # gradio, only for the 4-tab UI
+```
+
+### Nothing installed at all
 
 ```bash
 git clone https://github.com/skamy64-ux/polyglot-bughunter-x

@@ -6,14 +6,41 @@ All notable changes to PolyglotBugHunter-X. Format follows
 
 ## [Unreleased]
 
-### Planned
-- Optional YOLOv8 / CLIP adapters for object-detection and image-text similarity
-  checks (`vision/` is stubbed; the space is there when someone wants it).
-- LangChain planner for crawl-path selection behind a feature flag, so a scan
-  never *depends* on an LLM being reachable.
-- Authenticated scanning via a session-cookie hook, opt-in and off by default in
-  the Space.
-- Locale coverage for it, pt-BR, tr, nl.
+## [1.0.1] - 2026-10-02
+
+### Changed
+- **The 110 KB base64 wheel is gone from both notebooks.** The kernel dropped
+  from 180 KB to 17 KB and the dataset notebook from 180 KB to 17.6 KB. The
+  wheel now rides along as a dataset file that Kaggle mounts natively, so a
+  kernel with `enable_internet: False` installs it offline. A notebook you can
+  read is worth more than a payload you cannot review, and a build artifact
+  cannot be silently truncated the way a pasted one can.
+- The Gradio Space runs on **Gradio 5 and 6**. Dependabot's bump from `<6` to
+  `<7` would have shipped a Space that cannot start: Gradio 6 removed
+  `Textbox(show_copy_button=...)` and moved `Blocks(theme=..., css=...)` to
+  `launch()`. Nothing caught it because the pin kept the app on 5 and
+  `pbhx serve` had never been executed.
+- `tools/release.py`: one command for the gate, the build, the publish and an
+  anonymous re-read of all six destinations. The dataset build is reproducible,
+  so the dirty-tree guard can actually pass.
+- `pbhx`, a command line with CI-shaped exit codes (0 clean, 1 findings at or
+  above `--fail-on`, 2 refused), plus `run.py` which needs no install at all.
+- Packaging made PyPI-ready: SPDX licence expression, `twine check --strict` in
+  CI, and a `publish.yml` using trusted publishing so no API token exists to
+  leak.
+
+### Fixed
+- `tools/publish.py` printed "uploaded" after the upload had already raised:
+  `space_sdk` belongs to `create_repo`, not `upload_folder`, so every Space push
+  failed silently while the success line still appeared.
+- GitHub references pointed at the Kaggle account. Three accounts on three
+  services, one string standing in for two of them.
+- The v1.0.0 tag went missing while `CHANGELOG.md` still referenced it.
+- The link checker used `HEAD` with a bot User-Agent, so Kaggle — which
+  implements neither — reported two live URLs as dead. It also counted a 5xx as
+  a verdict on the link rather than a verdict about the host.
+- Two tests passed only in the state their author works in, by reading a build
+  folder before checking it exists. CI never has that folder.
 
 ## [1.0.0] - 2026-10-02
 
@@ -71,5 +98,6 @@ First flight. 🚀
 - The crawler is same-origin by default, so a bug reachable only cross-origin is
   not found. `same_origin_only=False` exists in `ScanConfig` for those cases.
 
-[Unreleased]: https://github.com/skamy64-ux/polyglot-bughunter-x/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/skamy64-ux/polyglot-bughunter-x/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/skamy64-ux/polyglot-bughunter-x/releases/tag/v1.0.1
 [1.0.0]: https://github.com/skamy64-ux/polyglot-bughunter-x/releases/tag/v1.0.0

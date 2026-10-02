@@ -49,7 +49,39 @@ from .scanner import access, audio, image, passive, text
 from .scanner import race as race_mod
 from .storage.db import Store
 
-__version__ = "1.0.0"
+
+def _read_version() -> str:
+    """The version, from pyproject when it is reachable.
+
+    This used to be a literal, which meant the number in the package and the
+    number on the index could disagree: bumping pyproject alone shipped a 1.0.1
+    that reported itself as 1.0.0, and nothing caught it because the test that
+    compared them imported an already-installed copy. A tag, the wheel filename
+    and the commit message all derive from the same file, so this does too.
+
+    Falls back to the literal when running from a checkout with no pyproject in
+    reach, which is what an installed wheel looks like.
+    """
+    import importlib.metadata
+    from pathlib import Path
+
+    try:
+        return importlib.metadata.version("polyglot-bug-hunter-x")
+    except importlib.metadata.PackageNotFoundError:
+        pass
+
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "pyproject.toml"
+        if candidate.is_file():
+            import re
+
+            m = re.search(r'^version = "([^"]+)"', candidate.read_text(), re.M)
+            if m:
+                return m.group(1)
+    return "0.0.0+unknown"
+
+
+__version__ = _read_version()
 
 
 class Hunter:

@@ -31,10 +31,17 @@ def test_parser_builds_without_conflicts():
 
 
 def test_version_flag_exits_zero(capsys):
+    """Compare against pyproject, not a literal.
+
+    A hard-coded version here fails on every release for no reason, and a check
+    that cries wolf is a check people stop running.
+    """
+    from polyglot_bug_hunter import __version__
+
     with pytest.raises(SystemExit) as exc:
         cli.main(["--version"])
     assert exc.value.code == 0
-    assert "1.0.0" in capsys.readouterr().out
+    assert __version__ in capsys.readouterr().out
 
 
 def test_no_subcommand_is_an_error():

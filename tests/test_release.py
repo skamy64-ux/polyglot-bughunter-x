@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -64,7 +65,13 @@ def test_targets_cover_all_five_surfaces():
 
 
 def test_declared_version_matches_pyproject():
-    assert rel.declared_version() == "1.0.0"
+    """Compare the helper against the file, not against a literal.
+
+    Hard-coding the expected version means this fails on every release for no
+    reason, which is how a version check gets ignored.
+    """
+    txt = (ROOT / "pyproject.toml").read_text()
+    assert rel.declared_version() == re.search(r'^version = "([^"]+)"', txt, re.M).group(1)
 
 
 def test_drift_check_passes_on_a_freshly_built_tree():

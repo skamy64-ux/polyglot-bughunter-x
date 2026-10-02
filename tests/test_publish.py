@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import re
 import sys
 from pathlib import Path
 
@@ -67,8 +68,13 @@ def test_upload_is_wrapped_so_failure_cannot_look_like_success():
     assert ok_line > guard, "'uploaded' must not be reachable when the upload raised"
 
 
+def _declared() -> str:
+    txt = (ROOT / "pyproject.toml").read_text()
+    return re.search(r'^version = "([^"]+)"', txt, re.M).group(1)
+
+
 def test_version_is_read_from_pyproject_not_by_importing():
-    assert pub._version() == "1.0.0"
+    assert pub._version() == _declared()
 
 
 def test_version_matches_the_package():
