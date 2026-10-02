@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -22,6 +23,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # 401 from huggingface.co means "private or does not exist". HF deliberately does
 # not 404 a missing Space, so a 401 is a broken link.
+#: Statuses that mean "the host is busy", not "the link is dead".
+TRANSIENT = frozenset({429, 500, 502, 503, 504})
+RETRIES = 3
+BACKOFF = 2.0
+
 URL_RE = re.compile(r"https?://[^\s)\"'<>\]]+")
 
 SCAN = [
@@ -99,18 +105,29 @@ def probe(url: str, timeout: int = 12) -> tuple[int, str]:
         })
     except ValueError as exc:
         return 0, f"unparseable: {exc}"
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            # GET downloads the body; a link check only cares about the status,
-            # and pulling a 100 MB dataset to learn it exists is rude.
-            r.read(2048)
-            return r.status, ""
-    except urllib.error.HTTPError as e:
-        return e.code, ""
-    except urllib.error.URLError as e:
-        return 0, str(e.reason)[:60]
-    except Exception as e:
-        return 0, f"{type(e).__name__}: {e}"[:60]
+    last = (0, "")
+    for attempt in range(RETRIES):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                # GET downloads the body; a link check only cares about the
+                # status, and pulling a 100 MB dataset to learn it exists is rude.
+                r.read(2048)
+                return r.status, ""
+        except urllib.error.HTTPError as e:
+            last = (e.code, "")
+            if e.code in TRANSIENT and attempt + 1 < RETRIES:
+                time.sleep(BACKOFF * (attempt + 1))
+                continue
+            return e.code, ""
+        except urllib.error.URLError as e:
+            last = (0, str(e.reason)[:60])
+            if attempt + 1 < RETRIES:
+                time.sleep(BACKOFF * (attempt + 1))
+                continue
+            return last
+        except Exception as e:
+            return (0, f"{type(e).__name__}: {e}"[:60])
+    return last
 
 
 def main() -> int:
@@ -124,6 +141,7 @@ def main() -> int:
     print(f"== link check: {len(all_urls)} unique URLs across {len(found)} files ==\n")
 
     bad = 0
+    unverified = 0
     for url in all_urls:
         where = sorted(rel for rel, urls in found.items() if url in urls)
         if url.startswith("!!"):
@@ -137,20 +155,37 @@ def main() -> int:
         code, note = probe(url, args.timeout)
         # huggingface returns 401 for a repo that does not exist
         ok = code in (200, 301, 302, 307, 308, 403)
-        if not ok:
+        # A 5xx or a 429 is the host declining to answer, which is a different
+        # claim from "this link is dead". GitHub returns 503/504 for a repo
+        # created seconds ago while it indexes, and throttles a link checker
+        # that hammers it - observed as 503, 503, then 200 on three consecutive
+        # requests to the same healthy URL. Counting that as broken is the same
+        # class of error as checking with HEAD: it indicts a working link, so
+        # the fix is never where you look.
+        unknown = code in TRANSIENT or code == 0
+        if unknown:
+            unverified += 1
+        elif not ok:
             bad += 1
-        flag = "ok  " if ok else "BAD "
+        flag = "ok  " if ok else ("???? " if unknown else "BAD ")
         print(f"  {flag} [{code or '--':>3}] {url}")
+        if unknown:
+            print(f"            host did not answer ({code or 'no response'}); "
+                  f"not a verdict on the link")
         if note:
             print(f"            {note}")
-        if not ok:
+        if not ok and not unknown:
             print(f"            referenced by: {', '.join(where)}")
 
     print()
     if bad:
         print(f"{bad} broken link(s).")
         return 1
-    print("all links resolve")
+    if unverified:
+        print(f"{unverified} link(s) unverified - the host declined to answer. "
+              f"That is not a verdict on the link; re-run before believing it.")
+    else:
+        print("all links resolve")
     return 0
 
 
