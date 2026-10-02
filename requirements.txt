@@ -1,6 +1,6 @@
 # PolyglotBugHunter-X - base install.
 # gradio only. The scanning core is stdlib-only on purpose.
-gradio>=4.44,<6
+gradio>=4.44,<7
 
 # ---- optional extras -----------------------------------------------------
 # Everything below is an adapter that degrades to "not available" when

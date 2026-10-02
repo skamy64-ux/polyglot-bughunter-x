@@ -5,7 +5,7 @@
 # The scanning core is stdlib-only on purpose: no requests, no bs4, no pillow,
 # no numpy. So the base install is just gradio.
 
-gradio>=4.44,<6
+gradio>=4.44,<7
 
 # --- optional, commented out on purpose -----------------------------------
 # Uncomment ONLY if your Space has room for the download. Everything below
