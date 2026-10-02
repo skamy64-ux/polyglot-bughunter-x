@@ -48,8 +48,11 @@ def test_dataset_notebook_can_actually_install():
     """The notebook shipped in the dataset must run for whoever downloads it.
 
     It used to carry `!pip install -q polyglot-bug-hunter-x`, and the project
-    is not on PyPI, so that cell fails outright. This is the defect that made
-    the dataset a table of strings rather than a runnable demo.
+    is not on PyPI, so that cell failed outright. That made the dataset a table
+    of strings rather than a runnable demo.
+
+    It now globs for the wheel that ships as a dataset file, which is Kaggle's
+    own "Add notebook -> Input" flow, rather than carrying 180 KB of base64.
     """
     nb_path = ROOT / "kaggle_dataset" / "hf_demo.ipynb"
     if not nb_path.is_file():
@@ -57,47 +60,97 @@ def test_dataset_notebook_can_actually_install():
     src = _notebook_source(nb_path)
     assert "pip install -q polyglot-bug-hunter-x" not in src, \
         "installs by PyPI name, which does not exist"
-    assert "_WHEEL_B64" in src, "the dataset notebook must inline the wheel"
+    assert "_WHEEL_B64" not in src, \
+        "the dataset notebook should not inline the wheel; it ships as a file"
+    assert "/kaggle/input" in src, "must look for the attached dataset"
+    assert "*.whl" in src
 
 
-def test_dataset_notebook_inlines_a_valid_wheel():
+def test_dataset_ships_a_valid_wheel_file():
+    """The notebook globs for a .whl, so a .whl has to actually be in the dataset."""
+    whls = sorted((ROOT / "kaggle_dataset").glob("*.whl"))
+    if not whls:
+        pytest.skip("run: python tools/build_kaggle.py")
+    assert len(whls) == 1, f"expected one wheel, found {len(whls)}"
+    with zipfile.ZipFile(whls[0]) as z:
+        names = z.namelist()
+    assert "polyglot_bug_hunter/__init__.py" in names
+    assert "polyglot_bug_hunter/cli.py" in names
+
+
+def test_dataset_metadata_documents_the_wheel():
+    meta_path = ROOT / "kaggle_dataset" / "dataset-metadata.json"
+    if not meta_path.is_file():
+        pytest.skip("run: python tools/build_kaggle.py")
+    meta = json.loads(meta_path.read_text())
+    listed = {r["path"] for r in meta["resources"]}
+    whls = list((ROOT / "kaggle_dataset").glob("*.whl"))
+    if whls:
+        assert whls[0].name in listed, \
+            "the wheel ships but is not listed as a Kaggle resource"
+
+
+def test_dataset_notebook_error_message_is_actionable():
+    """A missing wheel must say what to do, not raise a raw pip error."""
     nb_path = ROOT / "kaggle_dataset" / "hf_demo.ipynb"
     if not nb_path.is_file():
         pytest.skip("run: python tools/build_kaggle.py")
     src = _notebook_source(nb_path)
-    m = re.search(r'_WHEEL_B64 = """\n(.*?)"""', src, re.S)
-    assert m, "base64 block missing"
-    raw = base64.b64decode(m.group(1))
-    assert zipfile.is_zipfile(io.BytesIO(raw)), "inlined payload is not a valid wheel"
-    assert "polyglot_bug_hunter/__init__.py" in zipfile.ZipFile(
-        io.BytesIO(raw)).namelist()
+    assert "Could not find" in src
+    assert "Add notebook" in src or "add this dataset" in src.lower()
+    assert "tools/build_kaggle.py" in src
 
 
-def test_both_notebooks_install_the_same_way():
+def test_both_notebooks_ship_the_same_code():
     """Drift between the two builders is how enable_free_internet happened.
 
-    Compares the wheel *contents*, not the wheel bytes: a wheel is a zip, and a
-    zip embeds a build timestamp, so two builds of identical source differ in 6
-    of 32 entries' date_time while every extracted file is byte-identical.
-    Asserting a whole-file hash here would fail on every rebuild and teach
-    people to ignore it.
+    The shapes differ on purpose - the kernel inlines the wheel because a
+    kernel must work on the first click, the dataset notebook globs for a file -
+    but the code inside them must be identical.
+
+    Comparison is over extracted contents, not file bytes: a wheel is a zip, a
+    zip embeds a build timestamp, and two builds of identical source differ in
+    6 of 32 entries' date_time while every extracted file is byte-identical. A
+    whole-file hash would fail on every rebuild and teach people to ignore it.
     """
-    a = ROOT / "kaggle_dataset" / "hf_demo.ipynb"
-    b = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
-    if not (a.is_file() and b.is_file()):
+    ds_nb = ROOT / "kaggle_dataset" / "hf_demo.ipynb"
+    k_nb = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
+    whls = sorted((ROOT / "kaggle_dataset").glob("*.whl"))
+    if not (ds_nb.is_file() and k_nb.is_file() and whls):
         pytest.skip("run both builders")
 
-    def contents(path: Path) -> dict[str, str]:
-        src = _notebook_source(path)
-        m = re.search(r'_WHEEL_B64 = """\n(.*?)"""', src, re.S)
-        assert m, f"{path.name} has no inlined wheel"
-        z = zipfile.ZipFile(io.BytesIO(base64.b64decode(m.group(1))))
+    def hashes(z):
         return {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist()}
 
-    ca, cb = contents(a), contents(b)
-    assert set(ca) == set(cb), "the two wheels hold different files"
-    differing = {n for n in ca if ca[n] != cb[n]}
-    assert not differing, f"the dataset and kernel ship different code: {sorted(differing)}"
+    with zipfile.ZipFile(whls[0]) as z:
+        a = hashes(z)
+
+    k_src = _notebook_source(k_nb)
+    m = re.search(r'_WHEEL_B64 = """\n(.*?)"""', k_src, re.S)
+    assert m, "the kernel must inline its wheel"
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(m.group(1)))) as z:
+        b = hashes(z)
+
+    assert set(a) == set(b), "the two wheels hold different files"
+    differing = {n for n in a if a[n] != b[n]}
+    assert not differing, f"dataset and kernel ship different code: {sorted(differing)}"
+
+
+def test_kernel_still_inlines_its_wheel():
+    """Deliberate asymmetry: a kernel cannot rely on attached input.
+
+    The dataset notebook was switched to a wheel file, and it would have been
+    easy to switch the kernel too. It must not: the kernel is what someone
+    lands on from the dataset page, and it has to work on the first click with
+    nobody having pressed "Add input".
+    """
+    k_nb = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
+    if not k_nb.is_file():
+        pytest.skip("run: python tools/build_kaggle_kernel.py")
+    src = _notebook_source(k_nb)
+    assert "_WHEEL_B64" in src
+    assert "/kaggle/input" not in src, \
+        "the kernel must not depend on an attached dataset"
 
 
 def test_shared_helper_version_matches_pyproject():
@@ -125,11 +178,39 @@ def test_rewrite_install_clears_stale_outputs():
 
     nb = {"cells": [{"cell_type": "code", "source": ["!pip install foo\n"],
                      "execution_count": 7, "outputs": [{"output_type": "stream"}]}]}
-    out = kn.rewrite_install(nb, ROOT / "pyproject.toml")
+    out = kn.rewrite_install(nb)
     cell = out["cells"][0]
     assert cell["outputs"] == []
     assert cell["execution_count"] is None
-    assert "_WHEEL_B64" in "".join(cell["source"])
+    assert "/kaggle/input" in "".join(cell["source"])
+
+
+def test_rewrite_install_accepts_a_cell_override():
+    """The kernel supplies its own inline cell; the shared rewriter must honour it."""
+    import _kaggle_notebook as kn
+
+    nb = {"cells": [{"cell_type": "code", "source": ["!pip install foo\n"],
+                     "execution_count": None, "outputs": []}]}
+    out = kn.rewrite_install(nb, cell_body=["# custom\n"])
+    assert "".join(out["cells"][0]["source"]) == "# custom\n"
+
+
+def test_rewrite_install_does_not_shadow_its_parameter():
+    """A loop variable named `cell` once shadowed the `cell` parameter.
+
+    The symptom was not an exception: it built a dict that referenced itself,
+    and json.dumps raised "Circular reference detected" only at write time.
+    """
+    import _kaggle_notebook as kn
+
+    nb = {"cells": [{"cell_type": "code", "source": ["!pip install x\n"],
+                     "execution_count": 1, "outputs": []},
+                    {"cell_type": "code", "source": ["print(1)\n"],
+                     "execution_count": 1, "outputs": []}]}
+    out = kn.rewrite_install(nb)
+    json.dumps(out)  # must not raise
+    assert len(out["cells"]) == 2
+    assert out["cells"][1]["source"] == ["print(1)\n"]
 
 
 def test_kernel_metadata_satisfies_kaggles_rules():

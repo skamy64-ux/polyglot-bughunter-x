@@ -12,7 +12,6 @@ exactly how `enable_free_internet` vs `enable_internet` and `public` vs
 
 from __future__ import annotations
 
-import base64
 import re
 import shutil
 import subprocess
@@ -49,54 +48,57 @@ def build_wheel(dest_dir: Path) -> Path:
         return out
 
 
-def install_cell(wheel: Path) -> list[str]:
-    """The install cell, with the wheel inlined as base64.
+def install_cell() -> list[str]:
+    """The install cell: find the wheel, install it, say clearly if it is gone.
 
-    Four ways this was tried before it worked, all of which looked fine locally
-    and failed in the kernel log:
+    This used to inline the wheel as base64, which worked but was the worst
+    thing in the repository: a 180 KB notebook of unreadable base64, rebuilds
+    that never converge byte-for-byte because a zip embeds a timestamp, and a
+    truncated paste that surfaces as a confusing pip error.
 
-    - install by PyPI name -> the project is not published there
-    - `pip install ./package` -> Kaggle does not upload the folder
-    - a source tree beside the notebook -> same reason
-    - a plain `.whl` beside the notebook -> `glob` came back empty
+    The wheel ships as an ordinary file in the Kaggle dataset instead, which is
+    what Kaggle's own "Add notebook -> attach dataset" flow is for. The notebook
+    drops back to 17 KB and reads like a notebook again.
 
-    Kaggle uploads the notebook itself, so the artifact has to be a cell. The
-    `is_zipfile` assertion means a truncated paste shows up as one clear line
-    instead of a confusing pip error.
+    Sources are tried in order of how likely they are to work on Kaggle:
+      1. the attached dataset, which is how the notebook is meant to be run
+      2. a wheel built next to the notebook, for a local or CI run
+      3. nothing - and then say exactly what to do about it
     """
-    blob = base64.b64encode(wheel.read_bytes()).decode("ascii")
-    chunks = [blob[i:i + 76] for i in range(0, len(blob), 76)]
-
-    lines = [
-        "import base64, subprocess, sys, zipfile\n",
-        "from pathlib import Path\n",
+    return [
+        "import glob, os, subprocess, sys\n",
         "\n",
-        "# The package is not on PyPI and the GitHub repo may not exist yet, so\n",
-        "# the wheel is inlined. Kaggle uploads the notebook and nothing else, so\n",
-        "# this is the one place the artifact cannot be lost on the way in.\n",
-        "# Regenerate with: python tools/build_kaggle.py\n",
-        "_WHEEL_B64 = \"\"\"\n",
-    ]
-    lines += [f"{c}\n" for c in chunks]
-    lines += [
-        "\"\"\"\n",
+        "# The package is not on PyPI, so it cannot be pip installed by name.\n",
+        "# It ships as a file in this dataset instead: on Kaggle it arrives via\n",
+        "# \"Add notebook -> Input -> polyglot-bug-patterns\". Locally it is built\n",
+        "# by:  python tools/build_kaggle.py\n",
+        "_candidates = (\n",
+        "    glob.glob(\"/kaggle/input/polyglot-bug-patterns/*.whl\"),   # attached dataset\n",
+        "    glob.glob(\"/kaggle/input/*/*.whl\"),                       # any attached dataset\n",
+        "    glob.glob(\"*.whl\"),                                       # built alongside\n",
+        "    glob.glob(\"../*.whl\"),\n",
+        ")\n",
+        "_wheel = next((w for group in _candidates for w in group), None)\n",
         "\n",
-        f"_whl = {WHEEL_NAME!r}\n",
-        "with open(_whl, \"wb\") as _fh:\n",
-        "    _fh.write(base64.b64decode(_WHEEL_B64))\n",
+        "if _wheel is None:\n",
+        "    raise SystemExit(\n",
+        "        \"Could not find polyglot_bug_hunter*.whl.\\n\\n\"\n",
+        "        \"  On Kaggle: add this dataset as notebook input.\\n\"\n",
+        "        \"  Locally:   python tools/build_kaggle.py\\n\\n\"\n",
+        "        \"  Or install the source directly: pip install -e .\"\n",
+        "    )\n",
         "\n",
-        "assert zipfile.is_zipfile(_whl), \"inlined wheel is not a valid zip\"\n",
-        "print(f\"installed from inlined wheel ({Path(_whl).stat().st_size} bytes)\")\n",
-        "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _whl],\n",
+        "print(f\"installing {_wheel} ({os.path.getsize(_wheel)} bytes)\")\n",
+        "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _wheel],\n",
         "               check=True)\n",
         "# Optional, all degrade gracefully:\n",
         "#   duckdb  pillow  faster-whisper  playwright\n",
     ]
-    return lines
 
 
 #: Matches the install cell in any notebook, whoever wrote it.
-INSTALL_RE = re.compile(r'^\s*(!pip install|%pip install|.*_WHEEL_B64)')
+INSTALL_RE = re.compile(
+    r"^\s*(!pip install|%pip install|.*_wheel = next\(|.*_WHEEL_B64)")
 
 
 def has_install_cell(nb: dict) -> bool:
@@ -106,28 +108,33 @@ def has_install_cell(nb: dict) -> bool:
     )
 
 
-def rewrite_install(nb: dict, wheel: Path) -> dict:
-    """Swap whatever install cell exists for the inlined-wheel one.
+def rewrite_install(nb: dict, cell_body: list[str] | None = None) -> dict:
+    """Swap whatever install cell exists for a working one.
 
     The original is a shell escape (`!pip install`), so a filter looking for
     the magic form `%pip install` does not see it. Matching both, plus
     "already ours", is what stops a stale PyPI install surviving into a
     published notebook.
+
+    `cell_body` overrides the replacement. The dataset notebook installs from a
+    dataset file; the kernel inlines a wheel instead, so it is not a consumer
+    of any attached input.
     """
     cells = []
     replaced = False
-    for cell in nb.get("cells", []):
-        if cell.get("cell_type") != "code":
-            cells.append(cell)
+    for existing in nb.get("cells", []):
+        if existing.get("cell_type") != "code":
+            cells.append(existing)
             continue
-        src = "".join(cell.get("source", []))
-        if INSTALL_RE.match(src):
-            cell = dict(cell)
-            cell["source"] = install_cell(wheel)
-            cell["execution_count"] = None
-            cell["outputs"] = []
+        if INSTALL_RE.match("".join(existing.get("source", []))):
+            new = dict(existing)
+            new["source"] = cell_body or install_cell()
+            new["execution_count"] = None
+            new["outputs"] = []
+            cells.append(new)
             replaced = True
-        cells.append(cell)
+        else:
+            cells.append(existing)
 
     if not replaced:
         raise SystemExit(
@@ -135,9 +142,9 @@ def rewrite_install(nb: dict, wheel: Path) -> dict:
             "will not be importable. Fix tools/build_notebook.py."
         )
 
-    for cell in cells:
-        if cell.get("cell_type") == "code":
-            cell["execution_count"] = None
-            cell["outputs"] = []
+    for existing in cells:
+        if existing.get("cell_type") == "code":
+            existing["execution_count"] = None
+            existing["outputs"] = []
     nb["cells"] = cells
     return nb

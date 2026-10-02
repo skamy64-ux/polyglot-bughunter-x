@@ -21,10 +21,15 @@ localhost and scans it. No credentials, no external host, no GPU.
 
 from __future__ import annotations
 
+import base64
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _kaggle_notebook import rewrite_install
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = ROOT / "notebooks" / "hf_demo.ipynb"
@@ -34,66 +39,52 @@ OUT = ROOT / "kaggle_kernel"
 # and asking for one wastes quota.
 ACCELERATOR = "none"
 
-#: Installs the package from the copy shipped inside the kernel folder.
-#: Not `pip install polyglot-bug-hunter-x`: that name is not on PyPI, and a
-#: `pip install git+https://github.com/...` fallback is a 404 until the repo is
-#: pushed. Optional extras are all listed but none are required - the core is
-#: stdlib-only, and every one of them degrades gracefully.
-def install_cell(wheel: Path) -> list[str]:
-    """The install cell, with the wheel inlined as base64.
+#: Matches what build_wheel() produces; asserted against pyproject so a version
+#: bump cannot leave a stale filename baked into a string literal.
+KERNEL_WHEEL_NAME = "polyglot_bug_hunter_x-1.0.0-py3-none-any.whl"
 
-    Kaggle will not carry the artifact alongside the notebook, whichever way it
-    is packaged. Three attempts, each confirmed by the kernel log:
+#: Kaggle slugifies the title to build the URL, and warns when the result does
+#: not match the id you asked for. Keeping them in sync means the URL is
+#: predictable and the push is not a warning about a redirect.
+TITLE = "polyglot-bug-patterns-demo"
+SUBTITLE = "Run the detector offline, then load the payload tables as Parquet."
 
-    - a source tree under `package/src/...` -> "File './package' does not exist"
-    - `pip install polyglot-bug-hunter-x` from PyPI -> the project is not
-      published there
-    - a plain `*.whl` next to the notebook -> uploaded, but the working
-      directory does not contain it, so `glob` found nothing
 
-    Kaggle uploads the notebook and its metadata and nothing else, so the
-    artifact has to live inside the notebook. Base64 in a cell is ugly and
-    completely reliable: no extra files, no build step, no network, and
-    Kaggle cannot drop a cell.
+def kernel_install_cell(wheel: Path) -> list[str]:
+    """The kernel's install cell, with the wheel inlined as base64.
+
+    The dataset notebook installs from a dataset file, which is the nicer
+    mechanism, but a kernel is self-contained on purpose: a notebook that fails
+    because nobody remembered to click "Add input" is a worse default than a
+    large one. The kernel is what someone lands on from the dataset page, and
+    it has to work on the first click.
     """
-    import base64
-
     blob = base64.b64encode(wheel.read_bytes()).decode("ascii")
-    # wrap so the notebook stays readable and diffs stay line-based
-    chunks = [blob[i:i + 76] for i in range(0, len(blob), 76)]
-
     lines = [
-        "import base64, io, subprocess, sys, zipfile\n",
+        "import base64, subprocess, sys, zipfile\n",
         "from pathlib import Path\n",
         "\n",
-        "# The package is not on PyPI and the GitHub repo may not exist yet, so\n",
-        "# the wheel is inlined here. Kaggle uploads the notebook itself, so this\n",
-        "# is the one place the artifact cannot be lost on the way in.\n",
+        "# Not on PyPI, and the GitHub repo may not exist yet, so the wheel is\n",
+        "# inlined. Kaggle uploads the notebook and nothing else.\n",
+        "# Regenerate with: python tools/build_kaggle_kernel.py\n",
         "_WHEEL_B64 = \"\"\"\n",
     ]
-    lines += [f"{c}\n" for c in chunks]
+    lines += [f"{blob[i:i + 76]}\n" for i in range(0, len(blob), 76)]
     lines += [
         "\"\"\"\n",
         "\n",
-        "_whl = f\"polyglot_bug_hunter_x-1.0.0-py3-none-any.whl\"\n",
+        f"_whl = {KERNEL_WHEEL_NAME!r}\n",
         "with open(_whl, \"wb\") as _fh:\n",
         "    _fh.write(base64.b64decode(_WHEEL_B64))\n",
         "\n",
-        "# sanity: it must be a real zip, not a truncated paste\n",
         "assert zipfile.is_zipfile(_whl), \"inlined wheel is not a valid zip\"\n",
-        "print(f\"unpacked {_whl} ({Path(_whl).stat().st_size} bytes)\")\n",
+        "print(f\"installed from inlined wheel ({Path(_whl).stat().st_size} bytes)\")\n",
         "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _whl],\n",
         "               check=True)\n",
         "# Optional, all degrade gracefully:\n",
         "#   duckdb  pillow  faster-whisper  playwright\n",
     ]
     return lines
-
-# Kaggle slugifies the title to build the URL, and warns when the result does
-# not match the id you asked for. Keeping the title and the id in sync means
-# the URL is predictable and the push is not a warning about a redirect.
-TITLE = "polyglot-bug-patterns-demo"
-SUBTITLE = "Run the detector offline, then load the payload tables as Parquet."
 
 
 def kernel_metadata(owner: str) -> dict:
@@ -150,48 +141,6 @@ def kernel_metadata(owner: str) -> dict:
     }
 
 
-def prepare(nb: dict, install_src: list[str]) -> dict:
-    """Make the notebook run on Kaggle.
-
-    The install cell is rewritten, not stripped and not left alone. The reason
-    is worth recording, because two plausible-looking fixes both fail:
-
-    - Stripping it dies with `ModuleNotFoundError`. The original is a shell
-      escape (`!pip install`), so a filter matching the magic form `%pip install`
-      does not even see it.
-    - Keeping it as-is also dies, more quietly: the package is NOT on PyPI, so
-      `pip install polyglot-bug-hunter-x` has nothing to resolve, and the
-      GitHub fallback is a 404 until the repo is pushed. A notebook that
-      depends on a repo that does not exist yet is a broken kernel.
-
-    So the install is pointed at the local copy that ships beside the notebook
-    in the kernel folder. That has no network dependency beyond Kaggle's own
-    index and keeps working whether or not GitHub exists yet.
-    """
-    kept = []
-    for cell in nb.get("cells", []):
-        if cell.get("cell_type") != "code":
-            kept.append(cell)
-            continue
-
-        joined = "".join(cell.get("source", []))
-        if joined.lstrip().startswith(("!pip install", "%pip install")):
-            cell["source"] = install_src
-            cell["execution_count"] = None
-            cell["outputs"] = []
-            kept.append(cell)
-            continue
-
-        cell["execution_count"] = None
-        # Kaggle runs the notebook top to bottom; carried-over outputs only
-        # bloat the file and mislead the log viewer
-        cell["outputs"] = []
-        kept.append(cell)
-
-    nb["cells"] = kept
-    return nb
-
-
 def build_wheel() -> Path:
     """Build a wheel of the package and return its path.
 
@@ -240,19 +189,24 @@ def main() -> int:
 
     # The wheel is built first: the install cell inlines it, so the notebook
     # cannot be written until the artifact exists.
+    #
+    # The kernel keeps the inlined copy even though the dataset now ships a
+    # wheel file. A kernel can attach datasets too, but only via the web UI or
+    # the `dataset_sources` metadata field, and a notebook that fails when
+    # nobody remembered to click "Add input" is a worse default than a large
+    # one. The dataset notebook uses the file; the kernel is self-contained.
     wheel = build_wheel()
-
-    nb = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
-    nb = prepare(nb, install_cell(wheel))
+    doc = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
+    doc = rewrite_install(doc, cell_body=kernel_install_cell(wheel))
     (OUT / "hf_demo.ipynb").write_text(
-        json.dumps(nb, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
     metadata = kernel_metadata(_owner())
     (OUT / "kernel-metadata.json").write_text(
         json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    code_cells = sum(1 for c in nb["cells"] if c["cell_type"] == "code")
-    installs = [c for c in nb["cells"] if c["cell_type"] == "code"
+    code_cells = sum(1 for c in doc["cells"] if c["cell_type"] == "code")
+    installs = [c for c in doc["cells"] if c["cell_type"] == "code"
                 and "pip" in "".join(c["source"])]
     assert installs, ("the notebook must keep an install cell: Kaggle's image "
                       "does not carry the package")
@@ -262,6 +216,11 @@ def main() -> int:
     assert not any("pip install -q polyglot-bug-hunter-x" in "".join(c["source"])
                    for c in installs), \
         "do not install by PyPI name, the project is not published there"
+    # the inlined wheel must match the one on disk, byte for byte. A zip embeds
+    # a timestamp so this compares contents, not the file.
+    _inlined = base64.b64decode(re.search(
+        r'_WHEEL_B64 = """\n(.*?)"""', "".join(installs[0]["source"]), re.S).group(1))
+    assert _inlined == wheel.read_bytes(), "the inlined wheel is not the built wheel"
     assert 20 <= len(metadata["subtitle"]) <= 80, \
         f"kaggle wants a 20-80 char subtitle, got {len(metadata['subtitle'])}"
     assert 5 <= len(metadata["title"]) <= 100, \

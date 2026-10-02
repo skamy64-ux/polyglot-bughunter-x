@@ -273,19 +273,23 @@ def main() -> int:
         copied += 1
 
     nb = ROOT / "notebooks" / "hf_demo.ipynb"
+    wheel: Path | None = None
     if nb.is_file():
         # The notebook that ships in the dataset has to work for whoever
         # downloads it, and "pip install polyglot-bug-hunter-x" does not: the
-        # project is not on PyPI, so the cell fails outright. Kaggle uploads
-        # only the notebook, so the wheel goes inside it.
+        # project is not on PyPI, so the cell fails outright.
+        #
+        # The wheel ships as a dataset file rather than being inlined in the
+        # notebook. Kaggle's own "Add notebook -> Input -> <dataset>" is the
+        # supported way to get a file alongside a notebook, and it keeps the
+        # notebook at 17 KB instead of 180 KB of base64.
         import _kaggle_notebook as kn
 
-        wheel = kn.build_wheel(OUT / ".wheel")
+        wheel = kn.build_wheel(OUT)
         doc = json.loads(nb.read_text(encoding="utf-8"))
-        doc = kn.rewrite_install(doc, wheel)
+        doc = kn.rewrite_install(doc)
         (OUT / "hf_demo.ipynb").write_text(
             json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-        shutil.rmtree(OUT / ".wheel", ignore_errors=True)
         copied += 1
 
     readme = (README
@@ -338,6 +342,9 @@ def main() -> int:
             {"path": "class_index.parquet", "description": "per-class counts"},
             {"path": "class_index.jsonl", "description": "same, JSON Lines"},
             {"path": "hf_demo.ipynb", "description": "runnable walkthrough"},
+            {"path": wheel.name if wheel else "polyglot_bug_hunter_x-1.0.0-py3-none-any.whl",
+             "description": "the scanner as an installable wheel; the notebook "
+                            "pip-installs this file"},
         ],
         "data": [
             {"name": "payloads",
