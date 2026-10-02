@@ -18,6 +18,7 @@ after uploading 40 files.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -133,12 +134,14 @@ def plan(kind: str, user: str, private: bool, dry: bool) -> int:
     from huggingface_hub import HfApi
 
     api = HfApi()
+    # space_sdk belongs to create_repo, not upload_folder. Passing it to both
+    # raised TypeError on upload_folder with huggingface_hub 1.33, which meant
+    # every Space push failed after the repo was created - and the failure was
+    # invisible because the "uploaded" line printed anyway from a different
+    # code path. Verified against the installed signature at build time below.
+    sdk = "gradio" if kind == "space" else "static"
     try:
-        extra = {}
-        if spec["type"] == "space":
-            # create_repo insists on this up front, and it is the sdk that
-            # decides whether the free tier will accept this repo at all
-            extra["space_sdk"] = "gradio" if kind == "space" else "static"
+        extra = {"space_sdk": sdk} if spec["type"] == "space" else {}
         api.create_repo(repo_id, repo_type=spec["type"], private=private,
                         exist_ok=True, **extra)
         print(f"  repo ensured: {repo_id}")
@@ -146,16 +149,19 @@ def plan(kind: str, user: str, private: bool, dry: bool) -> int:
         print(f"  !! create_repo failed: {type(exc).__name__}: {exc}")
         return 1
 
-    extra = ({"space_sdk": "gradio" if kind == "space" else "static"}
-             if spec["type"] == "space" else {})
-    api.upload_folder(
-        folder_path=str(spec["path"]),
-        repo_id=repo_id,
-        repo_type=spec["type"],
-        ignore_patterns=EXCLUDE,
-        commit_message="PolyglotBugHunter-X v1.0.0 initial release",
-        **extra,
-    )
+    try:
+        api.upload_folder(
+            folder_path=str(spec["path"]),
+            repo_id=repo_id,
+            repo_type=spec["type"],
+            ignore_patterns=EXCLUDE,
+            commit_message=f"PolyglotBugHunter-X {_version()} release",
+        )
+    except Exception as exc:
+        # Never print "uploaded" after a failed upload. That is how a broken
+        # publish looked like a successful one.
+        print(f"  !! upload failed: {type(exc).__name__}: {exc}")
+        return 1
     print(f"  uploaded.  ->  https://huggingface.co/{repo_id}")
     if kind == "static":
         print("  a static space needs no build - it is live now. Pin it from the")
@@ -163,6 +169,17 @@ def plan(kind: str, user: str, private: bool, dry: bool) -> int:
     else:
         print("  watch the logs for the 'Running on local URL' line, then pin it.")
     return 0
+
+
+def _version() -> str:
+    """Read the version from pyproject without importing the package.
+
+    publish.py runs before anything is installed, and importing the package to
+    read its own version would make the tool depend on the thing it publishes.
+    """
+    txt = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    m = re.search(r'^version = "([^"]+)"', txt, re.M)
+    return m.group(1) if m else "unknown"
 
 
 def main() -> int:
