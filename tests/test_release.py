@@ -269,3 +269,27 @@ def test_help_lists_every_target():
     assert p.returncode == 0
     for name in rel.TARGETS:
         assert name in p.stdout, f"{name} is not offered on the command line"
+
+
+def test_link_checker_normalises_vcs_refs():
+    """`git+https://host/o/r@v1` is a pip requirement, not a web URL.
+
+    Checked verbatim it 404s, and the link checker reported the pinned install
+    line in the README as a dead link. Two shapes have to be handled: the git+
+    prefix, and the @ref suffix. Missing the first means the second is never
+    even visible to the pattern.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "check_links", ROOT / "tools" / "check_links.py")
+    cl = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cl)
+
+    got = cl._urls_in('pip install "x @ git+https://github.com/o/r@v1.0.1"')
+    assert got == {"https://github.com/o/r"}, got
+    # an ordinary link is untouched
+    assert cl._urls_in("see https://pypi.org/project/x/") == {
+        "https://pypi.org/project/x/"}
+    # a bare git+ with no ref is not checkable
+    assert cl._urls_in("git+https://github.com/o/r") == set()

@@ -6,6 +6,16 @@ All notable changes to PolyglotBugHunter-X. Format follows
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-02
+
+### Changed
+- Published to PyPI through GitHub Actions using trusted publishing, so no API
+  token exists to store, leak, or rotate. A release is now a tag.
+
+### Fixed
+- The link checker reported a pinned  line as a
+  dead link: the  is part of the requirement, not the web URL.
+
 ## [1.0.1] - 2026-10-02
 
 ### Changed
@@ -105,6 +115,7 @@ First flight. 🚀
 - The crawler is same-origin by default, so a bug reachable only cross-origin is
   not found. `same_origin_only=False` exists in `ScanConfig` for those cases.
 
-[Unreleased]: https://github.com/skamy64-ux/polyglot-bughunter-x/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/skamy64-ux/polyglot-bughunter-x/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/skamy64-ux/polyglot-bughunter-x/releases/tag/v1.0.2
 [1.0.1]: https://github.com/skamy64-ux/polyglot-bughunter-x/releases/tag/v1.0.1
 [1.0.0]: https://github.com/skamy64-ux/polyglot-bughunter-x/releases/tag/v1.0.0

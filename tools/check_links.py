@@ -28,7 +28,30 @@ TRANSIENT = frozenset({429, 500, 502, 503, 504})
 RETRIES = 3
 BACKOFF = 2.0
 
-URL_RE = re.compile(r"https?://[^\s)\"'<>\]]+")
+#: Matches a web URL, and a VCS requirement that wraps one. The optional
+#: `git+` prefix has to be part of the pattern: matching from `https` alone
+#: captures `https://github.com/o/r@v1.0.1` and the VCS ref is invisible, so the
+#: @ref can never be stripped and the link is probed as a web URL that 404s.
+URL_RE = re.compile(r"(?:git\+)?https?://[^\s)\"'<>\]]+")
+
+#: A VCS requirement's ref is not part of the web URL:
+#:     git+https://github.com/owner/repo@v1.0.1
+#: Probing it verbatim 404s. Strip the ref and check the repo page instead.
+VCS_RE = re.compile(r"^(?:git\+)?(https?://[^\s)\"'<>\]]+)@([^\s)\"'<>\]]+)$")
+
+
+def _urls_in(text: str) -> set[str]:
+    """Web URLs, with VCS refs normalised to something a browser can fetch."""
+    out: set[str] = set()
+    for raw in URL_RE.findall(text):
+        vcs = VCS_RE.match(raw)
+        if vcs:
+            out.add(vcs.group(1))
+            continue
+        if raw.startswith("git+"):
+            continue
+        out.add(raw)
+    return out
 
 SCAN = [
     "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
@@ -63,7 +86,8 @@ def collect() -> dict[str, set[str]]:
         if not p.is_file():
             continue
         urls = set()
-        for raw in URL_RE.findall(p.read_text(encoding="utf-8", errors="replace")):
+        text = p.read_text(encoding="utf-8", errors="replace")
+        for raw in _urls_in(text):
             url = raw.rstrip(".,);:`}>\"'")
             if any(h in url for h in SKIP_PATTERNS):
                 continue

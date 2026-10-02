@@ -24,7 +24,7 @@ PKG = "polyglot_bug_hunter"
 
 #: Everything in the notebook's install cell is derived from this, so a version
 #: bump can never leave a stale wheel name baked into a string literal.
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 WHEEL_NAME = f"polyglot_bug_hunter_x-{VERSION}-py3-none-any.whl"
 
 #: The three accounts, matching tools/release.py. A notebook that pip-installs
@@ -33,7 +33,7 @@ GITHUB_OWNER = "skamy64-ux"
 REPO = "polyglot-bughunter-x"
 #: An immutable ref. Branch names move, and a notebook that tracks `main` will
 #: silently start running different code than it did when it was published.
-REPO_TAG = "v1.0.1"
+REPO_TAG = "v1.0.2"
 VCS_URL = f"git+https://github.com/{GITHUB_OWNER}/{REPO}@{REPO_TAG}"
 
 
