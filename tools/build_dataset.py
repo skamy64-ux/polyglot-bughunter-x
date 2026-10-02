@@ -13,6 +13,7 @@ Run:  python tools/build_dataset.py
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -26,12 +27,30 @@ from polyglot_bug_hunter.safety import is_forbidden_payload  # noqa: E402
 
 OUT = ROOT / "hf_dataset" / "data"
 
+#: The demo target binds a random loopback port, and that port ends up in 42
+#: rows of findings.jsonl. Left alone, every build produced a different dataset
+#: and a dirty tree, which quietly disabled the dirty-tree guard in
+#: tools/release.py. Normalising it here is what makes the build reproducible.
+_PORT_RE = re.compile(r"127\.0\.0\.1:\d+")
+
+
+def normalise(value):
+    """Replace the demo's ephemeral loopback port with a stable one."""
+    if isinstance(value, str):
+        return _PORT_RE.sub("127.0.0.1:8000", value)
+    if isinstance(value, list):
+        return [normalise(v) for v in value]
+    if isinstance(value, dict):
+        return {k: normalise(v) for k, v in value.items()}
+    return value
+
 
 def write_jsonl(rows: list[dict], name: str) -> Path:
     path = OUT / name
     with path.open("w", encoding="utf-8") as fh:
         for row in rows:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+            fh.write(json.dumps(normalise(row), ensure_ascii=False,
+                                sort_keys=False) + "\n")
     return path
 
 
@@ -69,6 +88,26 @@ def main() -> int:
     # ------------------------------------------------- demo scan results
     print("running the demo scan (this takes ~8s)...")
     report = Hunter.demo(lang="en", modes=["text", "passive", "image", "audio"])
+
+    # Rewrite the target's ephemeral port to a fixed one *before* anything is
+    # derived from it. Finding.fingerprint hashes the endpoint's netloc and the
+    # title, and two CSRF findings carry the URL inside the title, so
+    # normalising only the endpoint left those two ids moving on every run.
+    # Fixing it here also means the ids a reader sees are stable across
+    # releases, which is the point of a fingerprint.
+    _port = None
+    for f in report.findings:
+        for attr in ("endpoint", "url", "title", "description", "proof",
+                     "remediation", "impact"):
+            v = getattr(f, attr, None)
+            if isinstance(v, str) and (m := _PORT_RE.search(v)):
+                _port = _port or m.group(0)
+                setattr(f, attr, _PORT_RE.sub("127.0.0.1:8000", v))
+        if f.affected_pages:
+            f.affected_pages = [normalise(p) for p in f.affected_pages]
+    if _port is not None:
+        print(f"  normalised the demo's ephemeral {_port} to 127.0.0.1:8000")
+
     rows = []
     for f in report.sorted_findings():
         rows.append({
@@ -95,9 +134,18 @@ def main() -> int:
     print(f"findings.jsonl      {len(rows):4d} rows  {f_path.stat().st_size}B")
 
     # ------------------------------------------------------ scan summary
+    # The target's port is whatever the loopback server happened to bind and the
+    # duration is wall clock, so both change on every run. Left in, they made
+    # every build dirty the tree, which quietly disabled the dirty-tree guard in
+    # tools/release.py - you could never publish, because building always
+    # produced a diff. A reproducible build is what makes that guard mean
+    # anything.
     summary = {
         "record_type": "scan_summary",
-        "target": report.target,
+        "target": "bundled demo target (localhost)",
+        "target_note": ("normalised: the real target carries a random loopback "
+                        "port and a wall-clock duration, neither of which is "
+                        "reproducible"),
         "modes": report.modes,
         "pages_scanned": len(report.assets),
         "findings": len(report.findings),
@@ -106,7 +154,6 @@ def main() -> int:
         "counts": report.counts(),
         "by_modality": report.by_modality(),
         "tech": report.tech,
-        "duration_sec": report.duration,
         "detector_version": "1.0.0",
     }
     s_path = write_jsonl([summary], "scans.jsonl")
