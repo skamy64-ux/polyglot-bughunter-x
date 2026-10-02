@@ -24,3 +24,4 @@ build/
 
 # written by the notebook when it runs inside the kernel folder
 kaggle_kernel/artifacts/
+dist/

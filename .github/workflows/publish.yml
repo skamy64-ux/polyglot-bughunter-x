@@ -1,0 +1,120 @@
+name: publish
+
+# Trusted publishing: no token is stored anywhere. PyPI is configured once, in
+# the browser, to trust this workflow on this repository; from then on a
+# release tag is the only trigger. There is no long-lived secret to leak, which
+# is the whole point - a PAT pasted into a chat or a CI log is a credential
+# that has to be rotated, and the previous release process had three of them.
+#
+# To set it up once, on pypi.org:
+#   Account -> Your projects -> polyglot-bug-hunter-x -> Publishing ->
+#   add a GitHub publisher:
+#     Owner  skamy64-ux
+#     Repo   polyglot-bughunter-x
+#     Workflow publish.yml
+#     Environment  (leave blank)
+#
+# The version comes from pyproject.toml. Bump it, tag, push.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: fail if the tag disagrees with pyproject
+        # Publishing 1.0.1 from a v1.1.0 tag would put the wrong version on
+        # PyPI forever, because a released version can never be replaced.
+        run: |
+          set -euo pipefail
+          want="${GITHUB_REF_NAME#v}"
+          got=$(python - <<'PY'
+          import re, pathlib
+          t = pathlib.Path("pyproject.toml").read_text()
+          print(re.search(r'^version = "([^"]+)"', t, re.M).group(1))
+          PY
+          )
+          echo "tag=$want pyproject=$got"
+          if [ "$want" != "$got" ]; then
+            echo "::error::tag v$want does not match pyproject version $got"
+            exit 1
+          fi
+
+      - name: the gate
+        # Nothing reaches PyPI without the tests passing on that exact commit.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . ruff pytest
+          ruff check src tests tools run.py
+          python -m pytest -q
+
+      - name: build
+        run: |
+          pip install build twine
+          python -m build
+
+      - name: check the artifacts before uploading
+        # twine is the last gate. It catches a missing README, a broken
+        # long_description, an unparseable license - all of which PyPI accepts
+        # and then renders badly forever.
+        run: |
+          twine check --strict dist/*
+          python - <<'PY'
+          import tarfile, zipfile, sys
+          sdist = next(__import__("pathlib").Path("dist").glob("*.tar.gz"))
+          names = tarfile.open(sdist).getnames()
+          need = ["pyproject.toml", "README.md", "LICENSE",
+                  "src/polyglot_bug_hunter/__init__.py",
+                  "src/polyglot_bug_hunter/cli.py",
+                  "src/polyglot_bug_hunter/safety.py",
+                  "src/polyglot_bug_hunter/py.typed"]
+          missing = [n for n in need if not any(x.endswith(n) for x in names)]
+          if missing:
+              sys.exit(f"sdist is missing {missing}")
+          wheel = next(__import__("pathlib").Path("dist").glob("*.whl"))
+          wn = zipfile.ZipFile(wheel).namelist()
+          if not any("py.typed" in n for n in wn):
+              sys.exit("wheel is missing py.typed; the package is typed")
+          if not any(n.endswith("entry_points.txt") for n in wn):
+              sys.exit("wheel is missing entry_points.txt; the pbhx command would not exist")
+          print(f"sdist {len(names)} entries, wheel {len(wn)} entries, both sane")
+          PY
+
+      - name: publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          # attestations let pip verify the artifact was built here and not
+          # swapped afterwards. Free, and it is what makes a supply chain
+          # review possible rather than a promise.
+          attestations: true
+
+      - name: verify it is really on PyPI
+        run: |
+          pip install --upgrade pip
+          # give the index a moment to settle
+          for i in $(seq 1 12); do
+            if pip download --no-deps --dest /tmp/verify \
+                 "polyglot-bug-hunter-x==${GITHUB_REF_NAME#v}" 2>/dev/null; then
+              echo "downloadable from PyPI"
+              ls -la /tmp/verify
+              exit 0
+            fi
+            echo "attempt $i: not indexed yet, waiting"
+            sleep 10
+          done
+          echo "::error::published but not downloadable from PyPI"
+          exit 1

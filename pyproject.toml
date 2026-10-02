@@ -8,7 +8,11 @@ version = "1.0.0"
 description = "Multimodal AI agent that sees, hears and reads a website while hunting bugs"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+# SPDX expression, not a table. PyPI rejects the table form under PEP 639, and
+# setuptools warns that it will stop working - a deprecation you only find out
+# about at upload time, which is the worst time.
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "PolyglotBugHunter-X contributors" }]
 keywords = [
     "security", "web-security", "bug-bounty", "multimodal", "agent",
@@ -18,7 +22,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Security",
