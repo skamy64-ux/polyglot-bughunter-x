@@ -130,7 +130,6 @@ def kernel_metadata(owner: str) -> dict:
         "cpu_count": 2,
         "memory": {"total": 4, "disk": 1, "kernel_cpu": 2, "kernel_gpu": 0,
                    "kernel_memory": 2048},
-        "enable_free_internet": False,
         "enable_gpu": ACCELERATOR == "gpu",
         "enable_tpu": ACCELERATOR == "tpu",
         # Kernels are private by default and the CLI has no visibility flag, so
@@ -141,6 +140,12 @@ def kernel_metadata(owner: str) -> dict:
         # silently ignored, which is what a `kaggle kernels pull` reveals. The
         # round-tripped metadata does not even contain a "public" key.
         "is_private": False,
+        # The key is enable_internet, NOT enable_free_internet. We sent the
+        # latter for several versions and the kernel ran with internet on the
+        # whole time - the same silently-ignored-key bug as "public" above.
+        # A `kaggle kernels pull -m` is the only way to see this: the stored
+        # document has enable_internet and no enable_free_internet at all.
+        "enable_internet": False,
         "competition_data": [],
     }
 

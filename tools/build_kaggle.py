@@ -30,6 +30,8 @@ import shutil
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "hf_dataset"
 OUT = ROOT / "kaggle_dataset"
@@ -272,7 +274,18 @@ def main() -> int:
 
     nb = ROOT / "notebooks" / "hf_demo.ipynb"
     if nb.is_file():
-        shutil.copy2(nb, OUT / "hf_demo.ipynb")
+        # The notebook that ships in the dataset has to work for whoever
+        # downloads it, and "pip install polyglot-bug-hunter-x" does not: the
+        # project is not on PyPI, so the cell fails outright. Kaggle uploads
+        # only the notebook, so the wheel goes inside it.
+        import _kaggle_notebook as kn
+
+        wheel = kn.build_wheel(OUT / ".wheel")
+        doc = json.loads(nb.read_text(encoding="utf-8"))
+        doc = kn.rewrite_install(doc, wheel)
+        (OUT / "hf_demo.ipynb").write_text(
+            json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        shutil.rmtree(OUT / ".wheel", ignore_errors=True)
         copied += 1
 
     readme = (README
