@@ -122,10 +122,18 @@ def test_neither_notebook_carries_a_wheel_anymore():
 
 
 def test_both_notebooks_install_the_same_pinned_ref():
-    k = _notebook_source(ROOT / "kaggle_kernel" / "hf_demo.ipynb")
-    d = _notebook_source(ROOT / "kaggle_dataset" / "hf_demo.ipynb")
-    if not k or not d:
-        pytest.skip("run both builders")
+    # The existence check has to come before the read. `if not k` looks like a
+    # guard but _notebook_source() has already raised by the time it is
+    # evaluated, so on a clean tree this was a FileNotFoundError rather than a
+    # skip. Caught by the publish workflow's first run, which runs the gate on a
+    # fresh checkout with none of the build folders present.
+    k_nb = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
+    d_nb = ROOT / "kaggle_dataset" / "hf_demo.ipynb"
+    if not (k_nb.is_file() and d_nb.is_file()):
+        pytest.skip("run both builders: tools/build_kaggle.py and "
+                    "tools/build_kaggle_kernel.py")
+    k = _notebook_source(k_nb)
+    d = _notebook_source(d_nb)
     ref = re.search(r"github\.com/skamy64-ux/polyglot-bughunter-x@(\S+?)['\"]", k)
     assert ref, "the kernel does not install from a pinned ref"
     assert ref.group(1) in d, \
