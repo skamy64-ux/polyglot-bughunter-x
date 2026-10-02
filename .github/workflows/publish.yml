@@ -22,7 +22,16 @@ on:
   workflow_dispatch:
 
 permissions:
+  # Least privilege. The workflow only needs to read the code...
   contents: read
+  # ...plus mint an OIDC token, which is what PyPI exchanges for an upload
+  # token. Without id-token: write the exchange fails with:
+  #   "missing or insufficient OIDC token permissions, the
+  #    ACTIONS_ID_TOKEN_REQUEST_TOKEN environment variable was unset"
+  # That message names a missing environment variable, not a missing
+  # permission, so it reads like a runner problem and sends you looking in the
+  # wrong place. This is the whole reason the job can publish at all.
+  id-token: write
 
 jobs:
   publish:
