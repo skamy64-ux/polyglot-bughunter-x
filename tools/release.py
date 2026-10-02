@@ -236,6 +236,18 @@ def do_build() -> bool:
     ])
 
 
+#: Which publish.py flag serves which target. Written out rather than derived,
+#: because the names collide: `space` here is the *static* space, while
+#: `publish.py --space` is the Gradio one that needs HF PRO. Deriving the flags
+#: from the target names sent --space, which failed on 402 every release while
+#: the three healthy repos behind it uploaded fine.
+HF_FLAGS = {
+    "space": ["--static"],
+    "model": ["--model"],
+    "hf-dataset": ["--dataset"],
+}
+
+
 def do_publish(only: list[str] | None) -> bool:
     py = sys.executable
     kaggle = "kaggle"
@@ -250,11 +262,8 @@ def do_publish(only: list[str] | None) -> bool:
     want = set(only) if only else set(TARGETS) - {"space-cdn"}
     ok = True
 
-    if want & {"space", "model", "hf-dataset"}:
-        flags = []
-        for key in ("space", "model", "dataset"):
-            if key in want or ("hf-dataset" in want and key == "dataset"):
-                flags.append(f"--{key}")
+    if want & set(HF_FLAGS):
+        flags = [f for key, f in HF_FLAGS.items() if key in want for f in f]
         ok &= run("hugging face (3 repos)",
                   [py, "tools/publish.py", "--user", HF, *flags, "--yes"])
 
