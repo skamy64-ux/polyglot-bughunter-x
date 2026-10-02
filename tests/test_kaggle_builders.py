@@ -151,29 +151,61 @@ def test_the_pinned_ref_is_a_tag_not_a_branch():
 
 
 def test_the_pinned_tag_actually_exists_on_github():
-    """An installer pointing at a tag that was never pushed is a 404 at read time.
+    """An installer pointing at a tag that was never pushed breaks at read time.
 
     Checked over the network because nothing local can know. Skipped when
     offline rather than failed, so the suite stays usable on a plane.
+
+    GET, not HEAD, and retried. This test failed intermittently for a whole
+    afternoon on a tag that was definitely there, for two reasons at once:
+
+    - GitHub does not implement HEAD on release pages, so the request can
+      answer 404 or 405 for a release that exists. tools/check_links.py hit the
+      same wall and it cost real debugging time there.
+    - a tag pushed moments earlier is still being indexed, and the page 404s
+      while that happens. Measured here: the same suite passed 422/422 four
+      consecutive times and failed once immediately after a force-push.
+
+    A check that fails at random on a correct tree trains people to re-run
+    until it is green, which is the same as having no check. A 5xx or a timeout
+    is the host declining to answer, not a verdict on the tag, so it is
+    retried and then skipped rather than reported.
     """
+    import time
     import urllib.error
     import urllib.request
 
     import _kaggle_notebook as kn
 
     url = f"https://github.com/{kn.GITHUB_OWNER}/{kn.REPO}/releases/tag/{kn.REPO_TAG}"
-    try:
-        req = urllib.request.Request(url, method="HEAD", headers={
-            "User-Agent": "Mozilla/5.0 (compatible; pbhx-test)"})
-        with urllib.request.urlopen(req, timeout=20) as r:
-            assert r.status == 200
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            pytest.fail(f"{url} is a 404. The notebooks install from this ref; "
-                        f"push the tag before publishing them.")
-        pytest.skip(f"unexpected {e.code}")
-    except Exception:
-        pytest.skip("offline")
+    last = ""
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) "
+                              "AppleWebKit/537.36 (KHTML, like Gecko) "
+                              "Chrome/120.0 Safari/537.36",
+                "Accept": "text/html,*/*",
+            })
+            with urllib.request.urlopen(req, timeout=25) as r:
+                if r.status == 200:
+                    return
+                last = str(r.status)
+        except urllib.error.HTTPError as e:
+            if e.code == 404 and attempt == 0:
+                # one retry before believing it: a just-pushed tag 404s while
+                # GitHub indexes it
+                last = "404"
+            elif e.code in (429, 500, 502, 503, 504):
+                last = str(e.code)
+            else:
+                pytest.fail(f"{url} returned {e.code}. The notebooks install "
+                            f"from this ref; push the tag before publishing.")
+        except Exception as e:
+            last = type(e).__name__
+        time.sleep(3 * (attempt + 1))
+
+    pytest.skip(f"github did not answer ({last}); not a verdict on the tag")
 
 
 def test_shared_helper_version_matches_pyproject():
