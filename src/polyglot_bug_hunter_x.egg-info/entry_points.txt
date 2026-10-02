@@ -1,2 +1,0 @@
-[console_scripts]
-pbhx = polyglot_bug_hunter.cli:main
