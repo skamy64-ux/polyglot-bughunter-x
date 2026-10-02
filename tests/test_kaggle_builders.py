@@ -8,10 +8,7 @@ during development, so both are asserted here rather than left to a live push.
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import importlib.util
-import io
 import json
 import re
 import sys
@@ -90,67 +87,85 @@ def test_dataset_metadata_documents_the_wheel():
             "the wheel ships but is not listed as a Kaggle resource"
 
 
-def test_dataset_notebook_error_message_is_actionable():
-    """A missing wheel must say what to do, not raise a raw pip error."""
+def test_dataset_notebook_falls_back_to_a_vcs_install():
+    """A missing wheel is no longer fatal: the GitHub tag is the real answer.
+
+    The wheel in the dataset is the offline path. Without it the notebook
+    installs from the repo, which is what made the base64 fallback unnecessary
+    in the first place.
+    """
     nb_path = ROOT / "kaggle_dataset" / "hf_demo.ipynb"
     if not nb_path.is_file():
         pytest.skip("run: python tools/build_kaggle.py")
     src = _notebook_source(nb_path)
-    assert "Could not find" in src
-    assert "Add notebook" in src or "add this dataset" in src.lower()
-    assert "tools/build_kaggle.py" in src
+    assert "git+https://github.com/" in src
+    assert "skamy64-ux/polyglot-bughunter-x@" in src
+    assert "_wheel = _VCS" in src or "_wheel = _VCS\n" in src
 
 
-def test_both_notebooks_ship_the_same_code():
-    """Drift between the two builders is how enable_free_internet happened.
+def test_neither_notebook_carries_a_wheel_anymore():
+    """Both used to inline a 110 KB wheel. The repo exists; install from it.
 
-    The shapes differ on purpose - the kernel inlines the wheel because a
-    kernel must work on the first click, the dataset notebook globs for a file -
-    but the code inside them must be identical.
-
-    Comparison is over extracted contents, not file bytes: a wheel is a zip, a
-    zip embeds a build timestamp, and two builds of identical source differ in
-    6 of 32 entries' date_time while every extracted file is byte-identical. A
-    whole-file hash would fail on every rebuild and teach people to ignore it.
+    Asserted because the base64 came back once already: a notebook that
+    inlines a build artifact cannot be reviewed, diffed, or read, and a
+    truncated paste surfaces as a pip error with no useful context.
     """
-    ds_nb = ROOT / "kaggle_dataset" / "hf_demo.ipynb"
-    k_nb = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
-    whls = sorted((ROOT / "kaggle_dataset").glob("*.whl"))
-    if not (ds_nb.is_file() and k_nb.is_file() and whls):
+    for rel in ("kaggle_dataset/hf_demo.ipynb", "kaggle_kernel/hf_demo.ipynb"):
+        nb = ROOT / rel
+        if not nb.is_file():
+            pytest.skip(f"run the builder for {rel}")
+        src = _notebook_source(nb)
+        assert "_WHEEL_B64" not in src, f"{rel} still inlines a wheel"
+        assert nb.stat().st_size < 40_000, (
+            f"{rel} is {nb.stat().st_size // 1024} KB, which suggests an "
+            f"inlined artifact crept back in")
+
+
+def test_both_notebooks_install_the_same_pinned_ref():
+    k = _notebook_source(ROOT / "kaggle_kernel" / "hf_demo.ipynb")
+    d = _notebook_source(ROOT / "kaggle_dataset" / "hf_demo.ipynb")
+    if not k or not d:
         pytest.skip("run both builders")
-
-    def hashes(z):
-        return {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist()}
-
-    with zipfile.ZipFile(whls[0]) as z:
-        a = hashes(z)
-
-    k_src = _notebook_source(k_nb)
-    m = re.search(r'_WHEEL_B64 = """\n(.*?)"""', k_src, re.S)
-    assert m, "the kernel must inline its wheel"
-    with zipfile.ZipFile(io.BytesIO(base64.b64decode(m.group(1)))) as z:
-        b = hashes(z)
-
-    assert set(a) == set(b), "the two wheels hold different files"
-    differing = {n for n in a if a[n] != b[n]}
-    assert not differing, f"dataset and kernel ship different code: {sorted(differing)}"
+    ref = re.search(r"github\.com/skamy64-ux/polyglot-bughunter-x@(\S+?)['\"]", k)
+    assert ref, "the kernel does not install from a pinned ref"
+    assert ref.group(1) in d, \
+        f"the kernel installs {ref.group(1)} but the dataset does not"
 
 
-def test_kernel_still_inlines_its_wheel():
-    """Deliberate asymmetry: a kernel cannot rely on attached input.
+def test_the_pinned_ref_is_a_tag_not_a_branch():
+    """A branch ref means a published notebook silently changes behaviour."""
+    import _kaggle_notebook as kn
 
-    The dataset notebook was switched to a wheel file, and it would have been
-    easy to switch the kernel too. It must not: the kernel is what someone
-    lands on from the dataset page, and it has to work on the first click with
-    nobody having pressed "Add input".
+    assert kn.REPO_TAG.startswith("v"), "the ref must be a version tag"
+    assert kn.REPO_TAG in kn.VCS_URL
+    for bad in ("@main", "@master", "@HEAD"):
+        assert bad not in kn.VCS_URL, f"{bad} moves; the notebook would too"
+
+
+def test_the_pinned_tag_actually_exists_on_github():
+    """An installer pointing at a tag that was never pushed is a 404 at read time.
+
+    Checked over the network because nothing local can know. Skipped when
+    offline rather than failed, so the suite stays usable on a plane.
     """
-    k_nb = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
-    if not k_nb.is_file():
-        pytest.skip("run: python tools/build_kaggle_kernel.py")
-    src = _notebook_source(k_nb)
-    assert "_WHEEL_B64" in src
-    assert "/kaggle/input" not in src, \
-        "the kernel must not depend on an attached dataset"
+    import urllib.error
+    import urllib.request
+
+    import _kaggle_notebook as kn
+
+    url = f"https://github.com/{kn.GITHUB_OWNER}/{kn.REPO}/releases/tag/{kn.REPO_TAG}"
+    try:
+        req = urllib.request.Request(url, method="HEAD", headers={
+            "User-Agent": "Mozilla/5.0 (compatible; pbhx-test)"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            assert r.status == 200
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            pytest.fail(f"{url} is a 404. The notebooks install from this ref; "
+                        f"push the tag before publishing them.")
+        pytest.skip(f"unexpected {e.code}")
+    except Exception:
+        pytest.skip("offline")
 
 
 def test_shared_helper_version_matches_pyproject():
@@ -373,31 +388,6 @@ def _install_lines_from_metadata():
         if "_WHEEL_B64" in src:
             return c["source"]
     return [""]
-
-
-def test_kernel_inlines_the_wheel_and_it_round_trips():
-    """The artifact lives inside the notebook because Kaggle drops extra files.
-
-    Confirmed by the kernel log across three attempts: a source folder arrived
-    as "File './package' does not exist", and a plain .whl next to the notebook
-    left `glob` empty.
-    """
-    nb_path = ROOT / "kaggle_kernel" / "hf_demo.ipynb"
-    whl = next(iter(sorted((ROOT / "kaggle_kernel").glob("*.whl"))), None)
-    if not nb_path.is_file() or whl is None:
-        pytest.skip("run: python tools/build_kaggle_kernel.py")
-
-    src = "".join(_install_lines_from_metadata())
-    m = re.search(r'_WHEEL_B64 = """\n(.*?)"""', src, re.S)
-    assert m, "the wheel base64 block is missing from the install cell"
-
-    decoded = base64.b64decode(m.group(1))
-    assert decoded == whl.read_bytes(), "the inlined wheel differs from the real one"
-    assert zipfile.is_zipfile(io.BytesIO(decoded)), "inlined payload is not a valid wheel"
-
-    names = zipfile.ZipFile(io.BytesIO(decoded)).namelist()
-    assert "polyglot_bug_hunter/__init__.py" in names
-    assert "polyglot_bug_hunter/cli.py" in names, "the CLI should ship too"
 
 
 def test_prepare_keeps_every_code_cell():

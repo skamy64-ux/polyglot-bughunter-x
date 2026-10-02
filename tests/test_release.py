@@ -81,7 +81,6 @@ def _fake_release_tree(tmp_path, pin: str):
     test that proved nothing. check_drift() looks under kaggle_dataset/ and
     kaggle_kernel/, so the fixture has to as well.
     """
-    import base64
     import shutil
 
     whls = sorted((ROOT / "kaggle_dataset").glob("*.whl"))
@@ -89,18 +88,18 @@ def _fake_release_tree(tmp_path, pin: str):
         pytest.skip("run: python tools/build_kaggle.py")
 
     (tmp_path / "pyproject.toml").write_text('version = "1.0.0"\n')
-    raw = base64.b64encode(whls[0].read_bytes()).decode()
-
     (tmp_path / "kaggle_dataset").mkdir()
     shutil.copy2(whls[0], tmp_path / "kaggle_dataset" / whls[0].name)
     (tmp_path / "kaggle_dataset" / "hf_demo.ipynb").write_text(json.dumps({"cells": [
-        {"cell_type": "code", "source": ['glob.glob("/kaggle/input/*/*.whl")\n']}]}))
+        {"cell_type": "code", "source": [
+            'glob.glob("/kaggle/input/*/*.whl")\n',
+            f'_VCS = "git+https://github.com/skamy64-ux/polyglot-bughunter-x@{pin}"\n']}]}))
 
     (tmp_path / "kaggle_kernel").mkdir()
     (tmp_path / "kaggle_kernel" / "hf_demo.ipynb").write_text(json.dumps({"cells": [
         {"cell_type": "code", "source": [
-            f'_whl = "polyglot_bug_hunter_x-{pin}-py3-none-any.whl"\n',
-            f'_WHEEL_B64 = """\n{raw}\n"""\n']},
+            "_VCS = "
+            f"'git+https://github.com/skamy64-ux/polyglot-bughunter-x@{pin}'\n"]},
     ]}))
     return whls[0]
 
@@ -122,32 +121,15 @@ def test_drift_check_passes_when_the_pin_matches(tmp_path, monkeypatch):
     assert rel.check_drift() is True
 
 
-def test_drift_check_notices_different_code(tmp_path, monkeypatch):
-    """Two wheels that build the same version but different code still drift."""
-    import base64
-    import io
-    import zipfile
+def test_pin_comparison_ignores_the_git_v_prefix():
+    """A tag reads v1.0.0 and pyproject reads 1.0.0.
 
-    whl = _fake_release_tree(tmp_path, pin="1.0.0")
-
-    # forge a wheel with the same version but a different file inside
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as out:
-        with zipfile.ZipFile(whl) as src:
-            for n in src.namelist():
-                data = src.read(n)
-                if n.endswith("__init__.py"):
-                    data = data + b"\n# tampered\n"
-                out.writestr(n, data)
-    forged = base64.b64encode(buf.getvalue()).decode()
-
-    (tmp_path / "kaggle_kernel" / "hf_demo.ipynb").write_text(json.dumps({"cells": [
-        {"cell_type": "code", "source": [
-            '_whl = "polyglot_bug_hunter_x-1.0.0-py3-none-any.whl"\n',
-            f'_WHEEL_B64 = """\n{forged}\n"""\n']},
-    ]}))
-    monkeypatch.setattr(rel, "ROOT", tmp_path)
-    assert rel.check_drift() is False, "differing code must fail even at one version"
+    Comparing them literally reports a mismatch and blocks every single
+    release, which is a very confident-looking way to be wrong about nothing.
+    """
+    assert rel._pin("ref:skamy64-ux/polyglot-bughunter-x@v1.0.0") == "1.0.0"
+    assert rel._pin("ref:o/r@1.0.0") == "1.0.0"
+    assert rel._pin("not-a-ref") == ""
 
 
 def test_wheel_extraction_rejects_a_notebook_carrying_nothing(tmp_path):

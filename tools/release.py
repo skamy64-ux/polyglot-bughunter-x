@@ -108,12 +108,18 @@ def wheel_contents(path: Path) -> dict[str, str]:
 
 
 def wheel_from_notebook(nb_path: Path):
-    """Extract the wheel a notebook installs, however it carries it.
+    """How a notebook gets the package: a file, an inline blob, or a ref.
 
-    Two shapes exist on purpose. The kernel inlines the wheel as base64,
-    because a kernel must work on the first click with nobody having attached
-    input. The dataset notebook globs for a file that ships beside it, which is
-    Kaggle's own "Add notebook -> Input" flow. Both are verified here.
+    Two shapes are gone and one arrived:
+
+    - the kernel used to inline a 110 KB base64 wheel, because a kernel can
+      only reach its own folder or PyPI and the repo did not exist yet
+    - the dataset notebook used to glob for a wheel file in the dataset
+    - now both pip-install the pinned Git tag, and the dataset keeps its wheel
+      as the offline path
+
+    Returns a dict of per-file hashes for a wheel-shaped install, the string
+    "ref:<url>" for a VCS install, or None for the file-glob shape.
     """
     doc = json.loads(nb_path.read_text())
     src = "\n".join("".join(c.get("source", [])) for c in doc["cells"])
@@ -124,10 +130,26 @@ def wheel_from_notebook(nb_path: Path):
         with zipfile.ZipFile(io.BytesIO(raw)) as z:
             return {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist()}
 
+    ref = re.search(r"git\+https://github\.com/([\w.-]+)/([\w.-]+)@([^\"'\\s]+)", src)
+    if ref:
+        return f"ref:{ref.group(1)}/{ref.group(2)}@{ref.group(3)}"
+
     if "/kaggle/input" in src:
         return None          # file-shaped; resolved against the dataset folder
     raise SystemExit(
-        f"{nb_path.name} carries no wheel: neither inlined nor found as a file")
+        f"{nb_path.name} carries no way to install the package: no ref, no "
+        f"inline wheel, no glob. The notebook would fail on line 2.")
+
+
+def _pin(reference: str) -> str:
+    """The bare version from a ref:<owner>/<repo>@<tag> string.
+
+    Strips the leading "v": git tags carry it and pyproject does not, so
+    comparing them directly reports v1.0.0 != 1.0.0 and blocks every release.
+    """
+    if not reference.startswith("ref:"):
+        return ""
+    return reference.split("@", 1)[1].lstrip("vV")
 
 
 def check_drift() -> bool:
@@ -154,8 +176,16 @@ def check_drift() -> bool:
             print(c(f"  x {exc}", RED))
             return False
         if shape is None:
-            print(f"  {c('ok', GREEN)} dataset notebook installs the dataset's own "
+            print(f"  {c('ok', GREEN)} dataset notebook falls back to its own "
                   f"wheel file ({len(a)} files)")
+        elif isinstance(shape, str):
+            pin = _pin(shape)
+            if pin == version:
+                print(f"  {c('ok', GREEN)} dataset notebook pins {pin}")
+            else:
+                print(c(f"  x dataset notebook pins {pin}, pyproject says {version}",
+                        RED))
+                ok = False
         else:
             diff = {n for n in a if a.get(n) != shape.get(n)}
             if diff:
@@ -173,19 +203,17 @@ def check_drift() -> bool:
         except SystemExit as exc:
             print(c(f"  x {exc}", RED))
             return False
-        if ds_whl and isinstance(k, dict):
-            try:
-                a = wheel_contents(ds_whl)
-                diff = {n for n in a if a.get(n) != k.get(n)}
-                if diff:
-                    print(c(f"  x kernel ships different code than the dataset: "
-                            f"{sorted(diff)[:3]}", RED))
-                    print(c("      rebuild both: python tools/release.py --build", GREY))
-                    ok = False
-                else:
-                    print(f"  {c('ok', GREEN)} kernel wheel == dataset wheel")
-            except Exception:
-                pass
+        pin = _pin(k)
+        if not pin:
+            print(c("  x the kernel does not install from a pinned ref", RED))
+            ok = False
+        elif pin != version:
+            print(c(f"  x kernel installs {pin}, pyproject says {version}", RED))
+            print(c("      a version bump has to reach the tag before it reaches "
+                    "the notebooks", GREY))
+            ok = False
+        else:
+            print(f"  {c('ok', GREEN)} kernel installs the pinned ref {pin}")
 
         # the version baked into the notebook must be the declared one
         src = "\n".join("".join(c.get("source", [])) for c in json.loads(

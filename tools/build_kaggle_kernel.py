@@ -21,15 +21,13 @@ localhost and scans it. No credentials, no external host, no GPU.
 
 from __future__ import annotations
 
-import base64
 import json
-import re
 import shutil
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _kaggle_notebook import rewrite_install
+from _kaggle_notebook import REPO_TAG, VCS_URL, rewrite_install
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = ROOT / "notebooks" / "hf_demo.ipynb"
@@ -39,10 +37,6 @@ OUT = ROOT / "kaggle_kernel"
 # and asking for one wastes quota.
 ACCELERATOR = "none"
 
-#: Matches what build_wheel() produces; asserted against pyproject so a version
-#: bump cannot leave a stale filename baked into a string literal.
-KERNEL_WHEEL_NAME = "polyglot_bug_hunter_x-1.0.0-py3-none-any.whl"
-
 #: Kaggle slugifies the title to build the URL, and warns when the result does
 #: not match the id you asked for. Keeping them in sync means the URL is
 #: predictable and the push is not a warning about a redirect.
@@ -50,41 +44,32 @@ TITLE = "polyglot-bug-patterns-demo"
 SUBTITLE = "Run the detector offline, then load the payload tables as Parquet."
 
 
-def kernel_install_cell(wheel: Path) -> list[str]:
-    """The kernel's install cell, with the wheel inlined as base64.
+def kernel_install_cell() -> list[str]:
+    """The kernel's install cell.
 
-    The dataset notebook installs from a dataset file, which is the nicer
-    mechanism, but a kernel is self-contained on purpose: a notebook that fails
-    because nobody remembered to click "Add input" is a worse default than a
-    large one. The kernel is what someone lands on from the dataset page, and
-    it has to work on the first click.
+    This used to inline the wheel as base64, which made the notebook 180 KB of
+    unreadable text. That was a workaround for a repo that did not exist: a
+    kernel can only reach what is in its own folder or on PyPI, and neither was
+    available. The repo exists now, so the kernel installs from an immutable tag
+    instead - same code, 17 KB notebook, and a human can read what it does.
+
+    The ref is a tag rather than a branch on purpose: a re-run of a published
+    kernel must not quietly start executing different code than it did when it
+    was published.
     """
-    blob = base64.b64encode(wheel.read_bytes()).decode("ascii")
-    lines = [
-        "import base64, subprocess, sys, zipfile\n",
-        "from pathlib import Path\n",
+    return [
+        "import subprocess, sys\n",
         "\n",
-        "# Not on PyPI, and the GitHub repo may not exist yet, so the wheel is\n",
-        "# inlined. Kaggle uploads the notebook and nothing else.\n",
-        "# Regenerate with: python tools/build_kaggle_kernel.py\n",
-        "_WHEEL_B64 = \"\"\"\n",
-    ]
-    lines += [f"{blob[i:i + 76]}\n" for i in range(0, len(blob), 76)]
-    lines += [
-        "\"\"\"\n",
-        "\n",
-        f"_whl = {KERNEL_WHEEL_NAME!r}\n",
-        "with open(_whl, \"wb\") as _fh:\n",
-        "    _fh.write(base64.b64decode(_WHEEL_B64))\n",
-        "\n",
-        "assert zipfile.is_zipfile(_whl), \"inlined wheel is not a valid zip\"\n",
-        "print(f\"installed from inlined wheel ({Path(_whl).stat().st_size} bytes)\")\n",
-        "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _whl],\n",
+        "# Install the scanner from an immutable tag. Not PyPI: the project is not\n",
+        "# published there. Not inline base64: the GitHub repo exists, and a\n",
+        "# notebook you can read beats 110 KB you cannot.\n",
+        f"_VCS = {VCS_URL!r}\n",
+        "print(f\"installing {_VCS}\")\n",
+        "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _VCS],\n",
         "               check=True)\n",
         "# Optional, all degrade gracefully:\n",
         "#   duckdb  pillow  faster-whisper  playwright\n",
     ]
-    return lines
 
 
 def kernel_metadata(owner: str) -> dict:
@@ -197,7 +182,7 @@ def main() -> int:
     # one. The dataset notebook uses the file; the kernel is self-contained.
     wheel = build_wheel()
     doc = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
-    doc = rewrite_install(doc, cell_body=kernel_install_cell(wheel))
+    doc = rewrite_install(doc, cell_body=kernel_install_cell())
     (OUT / "hf_demo.ipynb").write_text(
         json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
@@ -216,11 +201,12 @@ def main() -> int:
     assert not any("pip install -q polyglot-bug-hunter-x" in "".join(c["source"])
                    for c in installs), \
         "do not install by PyPI name, the project is not published there"
-    # the inlined wheel must match the one on disk, byte for byte. A zip embeds
-    # a timestamp so this compares contents, not the file.
-    _inlined = base64.b64decode(re.search(
-        r'_WHEEL_B64 = """\n(.*?)"""', "".join(installs[0]["source"]), re.S).group(1))
-    assert _inlined == wheel.read_bytes(), "the inlined wheel is not the built wheel"
+    # The ref must be a tag, not a branch: a published kernel that tracks a
+    # moving branch starts running different code on the next re-run.
+    _cell = "".join(installs[0]["source"])
+    assert REPO_TAG in _cell, "the kernel must install from the pinned tag"
+    assert "@main" not in _cell and "@master" not in _cell, \
+        "installing from a branch means the published notebook can change underneath you"
     assert 20 <= len(metadata["subtitle"]) <= 80, \
         f"kaggle wants a 20-80 char subtitle, got {len(metadata['subtitle'])}"
     assert 5 <= len(metadata["title"]) <= 100, \
@@ -229,14 +215,14 @@ def main() -> int:
 
     print(f"kernel    : {metadata['id']}")
     print(f"subtitle  : {len(metadata['subtitle'])} chars (kaggle wants 20-80)")
-    print(f"assembled : {code_cells} code cells, bundled wheel, outputs cleared")
+    print(f"assembled : {code_cells} code cells, installs from the pinned tag, outputs cleared")
     print(f"           -> {OUT}")
     print()
     print("  push with:")
     print("    kaggle kernels push -p kaggle_kernel")
     print()
-    print("  the notebook is offline: it boots its own vulnerable target on")
-    print("  localhost. nothing leaves the kernel.")
+    print(f"  the notebook pip-installs {REPO_TAG} from GitHub, then boots its")
+    print("  own vulnerable target on localhost. nothing leaves the kernel.")
     return 0
 
 

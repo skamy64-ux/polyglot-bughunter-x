@@ -23,9 +23,18 @@ ROOT = Path(__file__).resolve().parents[1]
 PKG = "polyglot_bug_hunter"
 
 #: Everything in the notebook's install cell is derived from this, so a version
-#: bump can never leave a stale wheel name baked into a string.
+#: bump can never leave a stale wheel name baked into a string literal.
 VERSION = "1.0.0"
 WHEEL_NAME = f"{PKG}_x-{VERSION}-py3-none-any.whl"
+
+#: The three accounts, matching tools/release.py. A notebook that pip-installs
+#: from the wrong namespace is a 404 nobody sees until a reader runs it.
+GITHUB_OWNER = "skamy64-ux"
+REPO = "polyglot-bughunter-x"
+#: An immutable ref. Branch names move, and a notebook that tracks `main` will
+#: silently start running different code than it did when it was published.
+REPO_TAG = "v1.0.0"
+VCS_URL = f"git+https://github.com/{GITHUB_OWNER}/{REPO}@{REPO_TAG}"
 
 
 def build_wheel(dest_dir: Path) -> Path:
@@ -68,27 +77,26 @@ def install_cell() -> list[str]:
     return [
         "import glob, os, subprocess, sys\n",
         "\n",
-        "# The package is not on PyPI, so it cannot be pip installed by name.\n",
-        "# It ships as a file in this dataset instead: on Kaggle it arrives via\n",
-        "# \"Add notebook -> Input -> polyglot-bug-patterns\". Locally it is built\n",
-        "# by:  python tools/build_kaggle.py\n",
+        "# Install the scanner. Not from PyPI: the project is not published there\n",
+        "# yet. From the Git tag, which is the same source and needs no credential.\n",
+        f"_VCS = \"git+https://github.com/{GITHUB_OWNER}/{REPO}@{REPO_TAG}\"\n",
+        "\n",
+        "# A wheel shipped inside this dataset is the offline fallback, so the\n",
+        "# notebook still runs with no network at all.\n",
         "_candidates = (\n",
-        "    glob.glob(\"/kaggle/input/polyglot-bug-patterns/*.whl\"),   # attached dataset\n",
-        "    glob.glob(\"/kaggle/input/*/*.whl\"),                       # any attached dataset\n",
-        "    glob.glob(\"*.whl\"),                                       # built alongside\n",
+        "    glob.glob(\"/kaggle/input/polyglot-bug-patterns/*.whl\"),  # this dataset\n",
+        "    glob.glob(\"/kaggle/input/*/*.whl\"),                      # any attached one\n",
+        "    glob.glob(\"*.whl\"),                                      # built alongside\n",
         "    glob.glob(\"../*.whl\"),\n",
         ")\n",
         "_wheel = next((w for group in _candidates for w in group), None)\n",
         "\n",
-        "if _wheel is None:\n",
-        "    raise SystemExit(\n",
-        "        \"Could not find polyglot_bug_hunter*.whl.\\n\\n\"\n",
-        "        \"  On Kaggle: add this dataset as notebook input.\\n\"\n",
-        "        \"  Locally:   python tools/build_kaggle.py\\n\\n\"\n",
-        "        \"  Or install the source directly: pip install -e .\"\n",
-        "    )\n",
+        "if _wheel is not None:\n",
+        "    print(f\"installing {_wheel} ({os.path.getsize(_wheel)} bytes, from the dataset)\")\n",
+        "else:\n",
+        "    print(f\"installing from {_VCS}\")\n",
+        "    _wheel = _VCS\n",
         "\n",
-        "print(f\"installing {_wheel} ({os.path.getsize(_wheel)} bytes)\")\n",
         "subprocess.run([sys.executable, \"-m\", \"pip\", \"install\", \"-q\", _wheel],\n",
         "               check=True)\n",
         "# Optional, all degrade gracefully:\n",
