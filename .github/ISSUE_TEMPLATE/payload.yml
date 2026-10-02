@@ -1,0 +1,62 @@
+name: Payload or bug-class suggestion
+description: Propose a detection payload or a bug class we do not cover
+labels: ["payload"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### The bar
+        Payloads must be **non-destructive** - CI runs
+        `is_forbidden_payload()` over the whole catalogue and a destructive one
+        will be closed automatically.
+
+        No `DROP` / `DELETE` / `UPDATE`, no `system()` / `xp_cmdshell`,
+        no `sleep()` / `benchmark()`, no reverse shells, no persistence.
+
+        We *want* things that make a target answer differently.
+  - type: input
+    id: cls
+    attributes:
+      label: Bug class
+      placeholder: sqli / xss / cmdi / ssti / traversal / ssrf / redirect / nosql-ldap / prompt-injection / other
+    validations:
+      required: true
+  - type: textarea
+    id: payload
+    attributes:
+      label: The payload
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: cwe
+    attributes:
+      label: CWE
+      placeholder: CWE-89
+  - type: dropdown
+    id: owasp
+    attributes:
+      label: OWASP Top 10 (2021)
+      options:
+        - A01 Broken Access Control
+        - A02 Cryptographic Failures
+        - A03 Injection
+        - A04 Insecure Design
+        - A05 Security Misconfiguration
+        - A07 Identification and Authentication Failures
+        - A10 SSRF
+  - type: textarea
+    id: signal
+    attributes:
+      label: What detector signal proves it?
+      description: |
+        Which observation distinguishes a real injection from a page that just
+        echoes your input? A reflection proves nothing.
+    validations:
+      required: true
+  - type: checkbox
+    id: safe
+    attributes:
+      label: I confirm this payload is non-destructive and I am authorized to test it
+    validations:
+      required: true

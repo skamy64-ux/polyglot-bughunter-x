@@ -1,0 +1,8 @@
+{
+  "name": "polyglot-bug-hunter-x",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "ES module marker so node can run the port test. Browsers do not need this and HF does not use it.",
+  "license": "MIT"
+}

@@ -1,0 +1,18 @@
+# PolyglotBugHunter-X - Space runtime deps.
+# Keep this SHORT. Every wheel is cold-start latency for your visitors, and a
+# Space that takes 40s to boot is a Space with no stars.
+#
+# The scanning core is stdlib-only on purpose: no requests, no bs4, no pillow,
+# no numpy. So the base install is just gradio.
+
+gradio>=4.44,<6
+
+# --- optional, commented out on purpose -----------------------------------
+# Uncomment ONLY if your Space has room for the download. Everything below
+# degrades gracefully when missing - see the About tab's capability table.
+#
+# duckdb>=1.0              # scan history in DuckDB instead of sqlite3
+# requests>=2.32           # nicer TLS + connection pooling
+# pillow>=10.0             # EXIF parsing for uploaded images
+# faster-whisper>=1.0      # audio STT (adds ~200MB of weights)
+# playwright>=1.45         # screenshot proof (needs `packages.txt` too)

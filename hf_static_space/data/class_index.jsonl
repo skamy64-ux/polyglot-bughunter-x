@@ -1,0 +1,9 @@
+{"record_type": "class_index", "vuln_class": "cmdi", "count": 6}
+{"record_type": "class_index", "vuln_class": "nosql-ldap", "count": 3}
+{"record_type": "class_index", "vuln_class": "prompt-injection", "count": 4}
+{"record_type": "class_index", "vuln_class": "redirect", "count": 3}
+{"record_type": "class_index", "vuln_class": "sqli", "count": 8}
+{"record_type": "class_index", "vuln_class": "ssrf", "count": 5}
+{"record_type": "class_index", "vuln_class": "traversal", "count": 5}
+{"record_type": "class_index", "vuln_class": "xss", "count": 9}
+{"record_type": "totals", "total": 43, "polyglot": 24, "classes": 8, "languages": 12}

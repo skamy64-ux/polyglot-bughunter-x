@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use PolyglotBugHunter-X in academic work, please cite it."
+title: "PolyglotBugHunter-X: Multimodal AI Web Bug Hunter"
+abstract: >-
+  A multimodal agent for authorized web security testing that reads pages
+  (text), inspects rendered output (image) and audits uploads (audio) in a
+  single scan. Findings carry CVSS v3.1 base scores, evidence that can be
+  re-checked, and CWE/OWASP mappings. Ships 43 non-destructive detection
+  payloads across 8 bug classes, 24 of them polyglot.
+type: software
+version: 1.0.0
+date-released: "2026-10-02"
+license: MIT
+repository-code: "https://github.com/Kicaulah/polyglot-bughunter-x"
+url: "https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static"
+keywords:
+  - web security
+  - bug bounty
+  - multimodal agent
+  - penetration testing
+  - CVSS
+  - prompt injection
+authors:
+  - name: "PolyglotBugHunter-X contributors"
+    website: "https://github.com/Kicaulah"

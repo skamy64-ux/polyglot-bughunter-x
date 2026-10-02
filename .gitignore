@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.duckdb
+*.sqlite3
+artifacts/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.DS_Store
+pbhx_canary.png
+kaggle_dataset/
+assets/demo-frames/
+kaggle_dataset/

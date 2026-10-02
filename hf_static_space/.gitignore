@@ -1,0 +1,3 @@
+# a static space has no build step and no artifacts
+.DS_Store
+node_modules/

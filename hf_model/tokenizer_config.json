@@ -1,0 +1,6 @@
+{
+  "tokenizer_class": "PreTrainedTokenizerFast",
+  "model_max_length": 8192,
+  "clean_up_tokenization_spaces": false,
+  "notes": "There is no tokenizer - this artefact is a detection profile, not a neural model. This file exists so transformers can load config.json without erroring."
+}

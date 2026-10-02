@@ -1,0 +1,4 @@
+artifacts/
+*.duckdb
+*.sqlite3
+__pycache__/

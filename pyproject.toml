@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot-bug-hunter-x"
+version = "1.0.0"
+description = "Multimodal AI agent that sees, hears and reads a website while hunting bugs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "PolyglotBugHunter-X contributors" }]
+keywords = [
+    "security", "web-security", "bug-bounty", "multimodal", "agent",
+    "xss", "sqli", "csrf", "idor", "ssrf", "cvss", "prompt-injection", "i18n",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Natural Language :: English",
+    "Natural Language :: Chinese",
+    "Natural Language :: Japanese",
+    "Natural Language :: Korean",
+    "Natural Language :: Arabic",
+    "Natural Language :: Russian",
+]
+dependencies = []
+
+[project.optional-dependencies]
+space = ["gradio>=4.44,<6"]
+duckdb = ["duckdb>=1.0"]
+http = ["requests>=2.32"]
+image = ["pillow>=10.0"]
+audio = ["faster-whisper>=1.0"]
+browser = ["playwright>=1.45"]
+agent = ["langchain>=0.3", "llama-index>=0.12"]
+all = [
+    "duckdb>=1.0", "requests>=2.32", "pillow>=10.0",
+    "playwright>=1.45", "faster-whisper>=1.0",
+]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://huggingface.co/spaces/Kicaulah/polyglot-bughunter-x-static"
+Model = "https://huggingface.co/Kicaulah/polyglot-bughunter-x"
+Dataset = "https://huggingface.co/datasets/Kicaulah/polyglot-bug-patterns"
+Repository = "https://github.com/Kicaulah/polyglot-bughunter-x"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+polyglot_bug_hunter = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF"]
+ignore = [
+    "E501",    # long lines are checked by the human eye, not a linter
+    "B008",
+    "RUF001", "RUF002", "RUF003",  # ambiguous unicode: we ship 12 languages on purpose
+    "SIM108",  # ternaries are not always clearer
+    "UP042",   # str+Enum: .value and json.dumps both need it, StrEnum breaks that
+    "SIM102",  # nested ifs are often clearer than a long compound condition
+    "SIM105",  # explicit try/except beats contextlib.suppress for a scanner
+    "SIM117",  # nested with-statement reads better here
+    "RUF059",  # unused unpacked names document intent
+]
+
+[tool.ruff.lint.per-file-ignores]
+"hf_space/app.py" = ["E402", "F401"]
+"notebooks/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["ignore::DeprecationWarning"]

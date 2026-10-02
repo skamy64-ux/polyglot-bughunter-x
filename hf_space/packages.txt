@@ -1,0 +1,8 @@
+# System packages for the Space. Chromium only matters if you enable
+# playwright screenshots - the demo runs fine without it.
+#
+# Chromium pulls ~170MB and makes cold starts noticeably slower, so it is off by
+# default. Turn it on if you want screenshot-diff proof in the report.
+#
+# chromium
+# chromium-driver

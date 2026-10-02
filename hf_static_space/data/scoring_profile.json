@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "artifact": "scoring-profile",
+    "version": "1.0.0",
+    "license": "mit"
+  },
+  "cvss": {
+    "version": "3.1",
+    "scope": "base",
+    "validated_against": "RedHatProductSecurity/cvss",
+    "validation": {
+      "random_vectors": 5000,
+      "mismatches": 0
+    }
+  },
+  "severity_bands": {
+    "critical": ">=9.0",
+    "high": ">=7.0",
+    "medium": ">=4.0",
+    "low": ">0.0",
+    "info": "0.0"
+  },
+  "risk_score": {
+    "range": [
+      0,
+      100
+    ],
+    "curve": "100 * (1 - exp(-raw/120))",
+    "divisor": 120,
+    "weights": {
+      "critical": 25.0,
+      "high": 12.0,
+      "medium": 5.0,
+      "low": 2.0,
+      "info": 0.5
+    },
+    "confidence_multipliers": {
+      "high": 1.0,
+      "medium": 0.75,
+      "low": 0.45
+    }
+  },
+  "dedupe": {
+    "host_scope_classes": [
+      "security-headers",
+      "cookies",
+      "cors",
+      "tls",
+      "exposed-files",
+      "html-comment-leak"
+    ],
+    "endpoint_scope_classes": [
+      "injection",
+      "idor",
+      "csrf",
+      "race"
+    ],
+    "note": "host-scope findings collapse into one row with a page count"
+  }
+}

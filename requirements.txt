@@ -1,0 +1,19 @@
+# PolyglotBugHunter-X - base install.
+# gradio only. The scanning core is stdlib-only on purpose.
+gradio>=4.44,<6
+
+# ---- optional extras -----------------------------------------------------
+# Everything below is an adapter that degrades to "not available" when
+# missing. Uncomment what you actually want.
+#
+# duckdb>=1.0            # scan history (falls back to sqlite3)
+# requests>=2.32         # nicer TLS + pooling
+# pillow>=10.0           # EXIF parsing
+# faster-whisper>=1.0    # audio STT (adds ~200MB of weights)
+# playwright>=1.45       # screenshot proof + pixel diff
+# tesseract-ocr>=0.1.1   # needs the system tesseract binary too
+# ultralytics>=8.0       # YOLOv8 object detection
+# open-clip-torch>=2.24  # CLIP image-text similarity
+# langchain>=0.3         # agent planning layer
+# llama-index>=0.12      # retrieval over docs
+# datasets>=3.0          # for the notebook

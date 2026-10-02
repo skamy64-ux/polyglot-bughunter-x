@@ -1,0 +1,100 @@
+# PolyglotBugHunter-X CI
+#
+# The interesting gate is not "does it import" - the core is stdlib-only and
+# always imports. It is: does the JavaScript port still agree with the Python,
+# and do the docs still link somewhere real.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # link rot is silent, so re-check it weekly even with no commits
+    - cron: "17 6 * * 1"
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: ruff
+        run: ruff check src tests tools
+      - name: pytest
+        run: python -m pytest -q
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: build the static space from the python source of truth
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          python tools/build_static_space.py
+      - name: dump the python reference
+        run: python tools/dump_js_reference.py
+      - name: js/python parity
+        run: node tools/test_static_space.mjs
+      - name: app-level checks
+        run: node tools/test_static_app.mjs
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - run: pip install -e . && python tools/build_static_space.py
+      - name: drive the real page
+        run: python tools/test_static_browser.py
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: every doc link must resolve
+        run: python tools/check_links.py
+
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . && pip install pytest
+      - name: no shipped payload may be destructive
+        run: |
+          python - <<'PY'
+          from polyglot_bug_hunter import payloads
+          from polyglot_bug_hunter.safety import is_forbidden_payload
+          bad = [(p.label, is_forbidden_payload(p.value)) for _, p in payloads.iter_all()
+                 if is_forbidden_payload(p.value)]
+          print(f"{len(payloads.ALL_PAYLOADS)} payloads checked, {len(bad)} destructive")
+          assert not bad, bad
+          print("OK: the catalogue is non-destructive")
+          PY

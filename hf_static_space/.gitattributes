@@ -1,0 +1,6 @@
+*.js   linguist-language=JavaScript
+*.css  linguist-language=CSS
+*.html linguist-language=HTML
+*.json linguist-language=JSON
+*.jsonl linguist-language=JSON
+*.ipynb linguist-language=Jupyter Notebook

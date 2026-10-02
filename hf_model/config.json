@@ -1,0 +1,222 @@
+{
+  "model_type": "pbhx-detection-profile",
+  "architectures": [
+    "PolyglotBugHunterXDetector"
+  ],
+  "name": "polyglot-bughunter-x",
+  "version": "1.0.0",
+  "author": "PolyglotBugHunter-X contributors",
+  "license": "mit",
+  "homepage": "https://huggingface.co/spaces/polyglot-bughunter-x/polyglot-bughunter-x",
+  "tags": [
+    "web-security",
+    "bug-bounty",
+    "multimodal",
+    "agent",
+    "i18n",
+    "cvss"
+  ],
+  "task": "web-application-security-audit",
+  "pipeline_tag": "text-generation",
+  "requires_gpu": false,
+  "safetensors": false,
+  "inference": false,
+  "notes": "Not a neural network. A deterministic, rule-based detection profile plus a payload vocabulary. Everything is reproducible and every finding ships the evidence that produced it.",
+  "languages": [
+    "en",
+    "zh",
+    "ja",
+    "ko",
+    "id",
+    "es",
+    "ar",
+    "ru",
+    "de",
+    "fr",
+    "pt",
+    "hi"
+  ],
+  "language_native_names": {
+    "en": "English",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어",
+    "id": "Bahasa Indonesia",
+    "es": "Español",
+    "ar": "العربية",
+    "ru": "Русский",
+    "de": "Deutsch",
+    "fr": "Français",
+    "pt": "Português",
+    "hi": "हिन्दी"
+  },
+  "language_flags": {
+    "en": "🇬🇧",
+    "zh": "🇨🇳",
+    "ja": "🇯🇵",
+    "ko": "🇰🇷",
+    "id": "🇮🇩",
+    "es": "🇪🇸",
+    "ar": "🇸🇦",
+    "ru": "🇷🇺",
+    "de": "🇩🇪",
+    "fr": "🇫🇷",
+    "pt": "🇵🇹",
+    "hi": "🇮🇳"
+  },
+  "rtl_languages": [
+    "ar"
+  ],
+  "modality_defaults": {
+    "text": true,
+    "image": false,
+    "audio": false,
+    "passive": true
+  },
+  "modality_descriptions": {
+    "text": "reflective injection, differential SQLi, SSTI arithmetic, command injection, traversal, SSRF, open redirect, NoSQL/LDAP, prompt injection",
+    "image": "screenshot diffing, EXIF/GPS privacy audit, alt-text injection, near-invisible-text canary generation",
+    "audio": "RIFF/HTML/ZIP polyglots, silence and decode-bomb checks, spectrogram injection, tone-encoded instructions, STT prompt injection",
+    "passive": "security headers, cookie flags, CORS reflection, mixed content, TLS, exposed sensitive files, stack fingerprinting, debug leakage"
+  },
+  "cvss": {
+    "version": "3.1",
+    "scope": "base",
+    "validated_against": "RedHatProductSecurity/cvss",
+    "validation": {
+      "random_vectors": 5000,
+      "mismatches": 0
+    }
+  },
+  "scoring": {
+    "severity_bands": {
+      "critical": ">=9.0",
+      "high": ">=7.0",
+      "medium": ">=4.0",
+      "low": ">0.0",
+      "info": "0.0"
+    },
+    "risk_score": {
+      "range": [
+        0,
+        100
+      ],
+      "curve": "100 * (1 - exp(-raw/120))",
+      "divisor": 120,
+      "weights": {
+        "critical": 25.0,
+        "high": 12.0,
+        "medium": 5.0,
+        "low": 2.0,
+        "info": 0.5
+      },
+      "confidence_multipliers": {
+        "high": 1.0,
+        "medium": 0.75,
+        "low": 0.45
+      }
+    }
+  },
+  "safety": {
+    "authorization_required": true,
+    "active_probing_default": false,
+    "blocked_network_ranges": [
+      "loopback",
+      "private-rfc1918",
+      "link-local",
+      "cgnat-100.64.0.0/10",
+      "multicast",
+      "reserved"
+    ],
+    "blocked_methods": [
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ],
+    "blocked_payload_substrings": [
+      "drop table",
+      "truncate table",
+      "delete from",
+      "update ",
+      "insert into",
+      "alter table",
+      "xp_cmdshell",
+      "; rm -",
+      "system(",
+      "exec(",
+      "passthru(",
+      "sleep(",
+      "benchmark(",
+      "waitfor delay",
+      "pg_sleep",
+      "unlink(",
+      "rmtree(",
+      "shutdown",
+      "reboot"
+    ],
+    "rate_limit_default_per_minute": 20,
+    "max_requests_default": 400,
+    "time_based_sqli": "disabled by design (sleep/benchmark blocked)",
+    "legal_notice": "Authorized use only. Only test systems you own or have explicit written permission to test."
+  },
+  "payload_counts": {
+    "total": 43,
+    "polyglot": 24,
+    "classes": 8,
+    "per_class": {
+      "sqli": 8,
+      "xss": 9,
+      "cmdi": 6,
+      "traversal": 5,
+      "ssrf": 5,
+      "redirect": 3,
+      "nosql-ldap": 3,
+      "prompt-injection": 4
+    }
+  },
+  "capabilities_optional": {
+    "playwright": {
+      "purpose": "screenshot proof + pixel diff",
+      "required": false
+    },
+    "duckdb": {
+      "purpose": "scan history storage",
+      "required": false,
+      "fallback": "sqlite3"
+    },
+    "pillow": {
+      "purpose": "EXIF parsing",
+      "required": false
+    },
+    "tesseract": {
+      "purpose": "OCR of rendered images",
+      "required": false
+    },
+    "faster-whisper": {
+      "purpose": "audio STT",
+      "required": false
+    },
+    "ultralytics": {
+      "purpose": "YOLOv8 object detection",
+      "required": false
+    },
+    "open-clip": {
+      "purpose": "CLIP image-text similarity",
+      "required": false
+    },
+    "langchain": {
+      "purpose": "agent planning layer",
+      "required": false
+    },
+    "llama-index": {
+      "purpose": "retrieval over docs",
+      "required": false
+    }
+  },
+  "companion_repos": {
+    "space": "polyglot-bughunter-x/polyglot-bughunter-x",
+    "dataset": "polyglot-bughunter-x/polyglot-bug-patterns",
+    "github": "polyglot-bughunter-x/polyglot-bughunter-x"
+  }
+}
