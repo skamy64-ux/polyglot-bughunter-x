@@ -156,6 +156,33 @@ def test_wheel_extraction_handles_both_shapes(tmp_path):
     assert zipfile.is_zipfile(whls[0])
 
 
+def test_hf_flag_mapping_is_explicit():
+    """The names collide and the derivation was wrong.
+
+    release.py's "space" is the static space. publish.py's --space is the
+    Gradio one, which needs HF PRO. Deriving flags from names sent --space,
+    got a 402, and reported FAILED while the three healthy repos behind it
+    uploaded fine. The bug was never a missing flag - it was a name that
+    looked right.
+    """
+    assert rel.HF_FLAGS["space"] == ["--static"], \
+        "'space' here is the static space, not publish.py's Gradio --space"
+    assert rel.HF_FLAGS["model"] == ["--model"]
+    assert rel.HF_FLAGS["hf-dataset"] == ["--dataset"]
+    # the Gradio space is never part of a release; it needs a paid plan
+    assert "--space" not in [f for fs in rel.HF_FLAGS.values() for f in fs]
+
+
+def test_every_hf_target_is_publishable():
+    """A target in TARGETS with no flag would silently never be published."""
+    for name in rel.TARGETS:
+        if name.endswith("-cdn"):
+            continue          # not a repo, just the deployed app behind one
+        if name.startswith(("kaggle-", "kernel")):
+            continue
+        assert name in rel.HF_FLAGS, f"{name} has no publish.py flag"
+
+
 def test_verify_uses_no_credentials(monkeypatch):
     """An authenticated 200 proves nothing about a public release.
 

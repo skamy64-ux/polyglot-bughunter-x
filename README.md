@@ -284,6 +284,34 @@ polyglots = ds["train"].filter(lambda r: r["polyglot"])
 print(len(polyglots), "polyglot payloads")
 ```
 
+## 🚀 Releasing
+
+Five published surfaces, and a release that lands on four of them is worse than
+no release script, because it looks done. One command runs the gate, rebuilds
+every artifact, checks for drift, pushes, then re-reads every destination back:
+
+```bash
+python tools/release.py --all          # check, build, publish, verify
+python tools/release.py --check        # the gate only, nothing uploaded
+python tools/release.py --build        # rebuild every artifact
+python tools/release.py --verify       # re-read all six URLs
+python tools/release.py --publish --only kaggle-dataset,kernel
+python tools/release.py --all --dry-run
+```
+
+| Guard | What it stops |
+|---|---|
+| The gate | Publishing on a red test suite. It runs ruff, pytest, JS/Python parity, app-level and browser checks. |
+| Drift check | A version bump reaching four surfaces out of five. Compares the wheel shipped in the Kaggle dataset against the one inlined in the kernel, and both against `pyproject`. |
+| Dirty-tree refusal | Uploading artifacts that do not match the commit. This is only meaningful because the build is reproducible. |
+| Anonymous verify | A broken publish reading as a success. With a token loaded both hosts answer 200 for private repos, so the verifier uses no credential at all. |
+
+Two things that verification taught, both of which report a healthy thing as
+broken: **Kaggle does not implement `HEAD`** — it 404s every HEAD request
+whether or not the repo exists — and it 404s any User-Agent that does not look
+like a browser. GET with a browser agent is the only combination that tells the
+truth.
+
 ## 🧱 Engineering notes
 
 A few decisions worth knowing about, because they're the difference between a
